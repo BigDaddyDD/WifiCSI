@@ -1,0 +1,17 @@
+{
+  "label": "still",
+  "room": "conference room",
+  "person": "dylan",
+  "posture": "stand",
+  "location": "60 inches in front of tx",
+  "distance_in": "88",
+  "note": "",
+  "port": "COM17",
+  "baud": 921600,
+  "started": "20260624_150714",
+  "packets": 6000,
+  "duration_s": 60.007,
+  "mean_rate_hz": 99.99,
+  "idx_drops": 0,
+  "last_rssi": -55
+}

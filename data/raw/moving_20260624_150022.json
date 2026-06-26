@@ -1,0 +1,17 @@
+{
+  "label": "moving",
+  "room": "conference room",
+  "person": "dylan",
+  "posture": "walk",
+  "location": "changing",
+  "distance_in": "88",
+  "note": "I am walking around the room around a large oval conference table in the middle of the room so it will vary in distance and direction",
+  "port": "COM17",
+  "baud": 921600,
+  "started": "20260624_150022",
+  "packets": 5999,
+  "duration_s": 60.003,
+  "mean_rate_hz": 99.98,
+  "idx_drops": 0,
+  "last_rssi": -56
+}

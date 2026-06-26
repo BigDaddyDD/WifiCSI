@@ -1,0 +1,20 @@
+{
+  "label": "o2_t4",
+  "room": "confA_o2",
+  "person": "p1",
+  "started": "20260625_143214",
+  "duration_s": 224.0,
+  "frames": 4005,
+  "frame_fps": 17.9,
+  "auto_label_frames": {
+    "still": 1240,
+    "moving": 1240,
+    "empty": 1525
+  },
+  "csi_packets": 20643,
+  "csi_drops": 1189,
+  "model": "yolo11n-pose.pt",
+  "move_thresh_px_s": 40.0,
+  "port": "COM17",
+  "cam": 0
+}

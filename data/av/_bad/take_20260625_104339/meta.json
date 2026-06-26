@@ -1,0 +1,20 @@
+{
+  "label": "take",
+  "room": "confA",
+  "person": "p1",
+  "started": "20260625_104339",
+  "duration_s": 121.83,
+  "frames": 2005,
+  "frame_fps": 16.5,
+  "auto_label_frames": {
+    "still": 1111,
+    "moving": 809,
+    "empty": 85
+  },
+  "csi_packets": 0,
+  "csi_drops": 0,
+  "model": "yolo11n-pose.pt",
+  "move_thresh_px_s": 40.0,
+  "port": "COM17",
+  "cam": 0
+}

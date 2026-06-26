@@ -1,0 +1,34 @@
+{
+  "confA": {
+    "description": "Conference room A - orientation 1 (first test setup)",
+    "length_in": 360,
+    "length_note": "30 ft",
+    "width_in": 223,
+    "tx_rx_separation_in": 88,
+    "layout": "RX and TX both along the short bottom wall, 88 in apart. Door on the right wall, mid-room.",
+    "rx_position": "bottom wall, left",
+    "tx_position": "bottom wall, 88 in right of RX (door side)",
+    "reference_points": {
+      "sitting_mid_left": {
+        "dist_from_rx_in": 173,
+        "desc": "left side, ~mid-room (per hand diagram 2026-06-24)"
+      }
+    }
+  },
+  "confA_o2": {
+    "description": "Conference room A - orientation 2 (generalization test, 2026-06-25)",
+    "length_in": 360,
+    "width_in": 223,
+    "tx_rx_separation_in": 106,
+    "layout": "RX and TX along the LEFT long wall, 106 in apart; link oriented down the room's length. Camera between them, closer to the RX side. Door on right wall, mid-room.",
+    "note": "Same room as confA but the link is rotated ~90 deg (short-wall 88in -> long-wall 106in). Used to test whether the presence model generalizes beyond one geometry's static fingerprint."
+  },
+  "confA_o3": {
+    "description": "Conference room A - orientation 3 (3rd geometry, 2026-06-25)",
+    "length_in": 360,
+    "width_in": 223,
+    "tx_rx_separation_in": 66,
+    "layout": "RX and TX along the TOP short wall (the 223 in wall), 66 in apart; opposite short wall from orientation 1. Camera between them. Door on right wall, mid-room.",
+    "note": "Third distinct link geometry. Enables train-on-2-orientations / test-on-the-held-out-3rd (leave-one-room-out) = the definitive portability test."
+  }
+}

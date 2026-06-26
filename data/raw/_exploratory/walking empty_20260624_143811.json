@@ -1,0 +1,13 @@
+{
+  "label": "empty",
+  "room": "confA",
+  "distance_m": "3.0",
+  "note": "",
+  "port": "COM17",
+  "baud": 921600,
+  "started": "20260624_143811",
+  "packets": 6001,
+  "duration_s": 60.008,
+  "mean_rate_hz": 100.0,
+  "idx_drops": 0
+}

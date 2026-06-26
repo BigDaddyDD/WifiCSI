@@ -1,0 +1,17 @@
+{
+  "label": "empty",
+  "room": "conference room",
+  "person": "dylan",
+  "posture": "",
+  "location": "",
+  "distance_in": "88",
+  "note": "",
+  "port": "COM17",
+  "baud": 921600,
+  "started": "20260624_150511",
+  "packets": 6002,
+  "duration_s": 60.017,
+  "mean_rate_hz": 100.01,
+  "idx_drops": 0,
+  "last_rssi": -56
+}

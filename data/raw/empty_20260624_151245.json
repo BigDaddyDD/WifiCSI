@@ -1,0 +1,17 @@
+{
+  "label": "empty",
+  "room": "confA",
+  "person": "p1",
+  "posture": "",
+  "location": "",
+  "distance_in": "88",
+  "note": "",
+  "port": "COM17",
+  "baud": 921600,
+  "started": "20260624_151245",
+  "packets": 6002,
+  "duration_s": 60.009,
+  "mean_rate_hz": 100.02,
+  "idx_drops": 0,
+  "last_rssi": -55
+}

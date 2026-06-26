@@ -1,0 +1,17 @@
+{
+  "label": "still",
+  "room": "conference room",
+  "person": "dylan",
+  "posture": "sit",
+  "location": "55 inches away from rx. I am in between the esps, 51 inches in front in the middle",
+  "distance_in": "88",
+  "note": "I am sitting in a chair inbtween the esps 51 inches moved forward",
+  "port": "COM17",
+  "baud": 921600,
+  "started": "20260624_150323",
+  "packets": 5998,
+  "duration_s": 60.008,
+  "mean_rate_hz": 99.95,
+  "idx_drops": 0,
+  "last_rssi": -57
+}

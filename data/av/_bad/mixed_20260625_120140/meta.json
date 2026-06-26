@@ -1,0 +1,20 @@
+{
+  "label": "mixed",
+  "room": "confA",
+  "person": "p1",
+  "started": "20260625_120140",
+  "duration_s": 326.05,
+  "frames": 2728,
+  "frame_fps": 8.4,
+  "auto_label_frames": {
+    "still": 1409,
+    "moving": 598,
+    "empty": 721
+  },
+  "csi_packets": 27610,
+  "csi_drops": 3657,
+  "model": "yolo11n-pose.pt",
+  "move_thresh_px_s": 40.0,
+  "port": "COM17",
+  "cam": 0
+}

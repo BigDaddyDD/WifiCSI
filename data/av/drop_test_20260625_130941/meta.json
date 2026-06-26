@@ -1,0 +1,20 @@
+{
+  "label": "drop_test",
+  "room": "confA",
+  "person": "p1",
+  "started": "20260625_130941",
+  "duration_s": 169.56,
+  "frames": 2315,
+  "frame_fps": 13.7,
+  "auto_label_frames": {
+    "still": 782,
+    "moving": 686,
+    "empty": 847
+  },
+  "csi_packets": 14088,
+  "csi_drops": 0,
+  "model": "yolo11n-pose.pt",
+  "move_thresh_px_s": 40.0,
+  "port": "COM17",
+  "cam": 0
+}
