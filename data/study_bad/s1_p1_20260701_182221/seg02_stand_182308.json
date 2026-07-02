@@ -1,0 +1,26 @@
+{
+  "segment": 2,
+  "label": "stand",
+  "position": "C3",
+  "xy_in": [
+    60,
+    60
+  ],
+  "path": "",
+  "duration_s": 30,
+  "subject": "s1",
+  "room": "home_L",
+  "placement": "p1",
+  "node_orientation": "flat",
+  "tx_xy_in": "120,0",
+  "rx_xy_in": {
+    "COM17": "30,0"
+  },
+  "ts": "182308",
+  "per_port": {
+    "COM17": {
+      "packets": 15,
+      "drops": 0
+    }
+  }
+}

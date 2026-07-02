@@ -1,0 +1,25 @@
+{
+  "segment": 1,
+  "label": "empty",
+  "position": "",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 30.0,
+  "subject": "s1",
+  "room": "home_L",
+  "placement": "p1",
+  "node_orientation": "flat",
+  "tx_xy_in": "120,0",
+  "rx_xy_in": {
+    "COM17": "30,0"
+  },
+  "note": "",
+  "ts": "133239",
+  "per_port": {
+    "COM17": {
+      "packets": 0,
+      "drops": 0
+    }
+  }
+}

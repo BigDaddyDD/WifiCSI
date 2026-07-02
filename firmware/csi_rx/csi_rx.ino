@@ -28,7 +28,7 @@
 // ----------------------- CONFIG (match csi_tx.ino) -------------------------
 static const char*    WIFI_SSID    = "csi_link";
 static const char*    WIFI_PASS    = "csi_password_123";
-static const int      WIFI_CHANNEL = 6;        // fixed 2.4 GHz channel (1/6/11)
+static const int      WIFI_CHANNEL = 1;        // moved off crowded ch6 (home)
 static const uint16_t UDP_PORT     = 5000;
 
 // 1 = auto-lock CSI to the first STA that connects (recommended, clean data).

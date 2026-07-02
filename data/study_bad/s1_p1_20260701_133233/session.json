@@ -1,0 +1,18 @@
+{
+  "room": "home_L",
+  "subject": "s1",
+  "placement": "p1",
+  "tx_xy_in": "120,0",
+  "rx_xy_in": {
+    "COM17": "30,0"
+  },
+  "node_orientation": "flat",
+  "channel": "6",
+  "ports": [
+    "COM17"
+  ],
+  "baud": 921600,
+  "firmware": "broadcast-TX + sniffer-RX",
+  "started": "20260701_133233",
+  "note": ""
+}

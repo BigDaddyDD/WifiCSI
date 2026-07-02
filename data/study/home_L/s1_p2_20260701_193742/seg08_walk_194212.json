@@ -1,0 +1,23 @@
+{
+  "segment": 8,
+  "label": "walk",
+  "position": "",
+  "xy_in": null,
+  "path": "C1->F5",
+  "duration_s": 30,
+  "subject": "s1",
+  "room": "home_L",
+  "placement": "p2",
+  "node_orientation": "rot90",
+  "tx_xy_in": "120,0",
+  "rx_xy_in": {
+    "COM17": "30,0"
+  },
+  "ts": "194212",
+  "per_port": {
+    "COM17": {
+      "packets": 2936,
+      "drops": 0
+    }
+  }
+}

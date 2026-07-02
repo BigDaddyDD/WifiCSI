@@ -1,0 +1,16 @@
+{
+  "room": "home_L",
+  "subject": "s1",
+  "placement": "p1",
+  "tx_xy_in": "120,0",
+  "rx_xy_in": {
+    "COM17": "30,0"
+  },
+  "node_orientation": "flat",
+  "ports": [
+    "COM17"
+  ],
+  "baud": 921600,
+  "started": "20260701_184207",
+  "firmware": "AP-RX + STA-TX (unicast)"
+}

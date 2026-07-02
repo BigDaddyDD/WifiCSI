@@ -30,5 +30,14 @@
     "tx_rx_separation_in": 66,
     "layout": "RX and TX along the TOP short wall (the 223 in wall), 66 in apart; opposite short wall from orientation 1. Camera between them. Door on right wall, mid-room.",
     "note": "Third distinct link geometry. Enables train-on-2-orientations / test-on-the-held-out-3rd (leave-one-room-out) = the definitive portability test."
+  },
+  "home_L": {
+    "description": "Home room (new, 2026-06-26) - L-shaped, floor-markable, more open space",
+    "shape": "L",
+    "bottom_wall_in": 150,
+    "left_wall_in": 124,
+    "right_wall_in": 314,
+    "grid": "origin (0,0) = bottom-left corner; x along 150in bottom wall {0,30,60,90,120,150} cols A-F; y up {0,30,60,90,120} rows 1-5; 30in (2.5ft) spacing",
+    "note": "First non-office environment. Enough clear floor to TAPE A COORDINATE GRID -> position/localization ground truth (homography) and a controlled coverage grid become possible. Origin = bottom-left corner (near the 'X' start); x-axis along the 150in bottom wall, y-axis up the walls; L-notch at top-left. Use for cross-environment generalization + position work; also vary node ORIENTATION here."
   }
 }

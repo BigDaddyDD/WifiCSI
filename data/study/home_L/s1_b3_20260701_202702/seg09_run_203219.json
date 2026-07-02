@@ -1,0 +1,23 @@
+{
+  "segment": 9,
+  "label": "run",
+  "position": "",
+  "xy_in": null,
+  "path": "pace",
+  "duration_s": 30,
+  "subject": "s1",
+  "room": "home_L",
+  "placement": "b3",
+  "node_orientation": "vertical",
+  "tx_xy_in": "120,0",
+  "rx_xy_in": {
+    "COM17": "30,0"
+  },
+  "ts": "203219",
+  "per_port": {
+    "COM17": {
+      "packets": 3006,
+      "drops": 0
+    }
+  }
+}
