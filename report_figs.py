@@ -123,10 +123,8 @@ def main():
             a.text(i - w / 2, g['acc'] + .01, f"{g['acc']:.2f}", ha='center', fontsize=8)
             a.text(i + w / 2, g['bal'] + .01, f"{g['bal']:.2f}", ha='center', fontsize=8)
         a.set_xticks(xs); a.set_xticklabels(names, fontsize=9)
-        a.set_ylim(0, 1.18); a.set_ylabel('Score'); a.set_title(title, fontsize=10)
-        a.axhline(0.5 if 'Presence' in title else 0.30, ls='--', lw=.8,
-                  color='gray', label='Chance / majority')
-        a.legend(fontsize=7, loc='upper center', ncol=3)
+        a.set_ylim(0, 1.18); a.set_ylabel('Score')
+        a.legend(fontsize=8, loc='upper center', ncol=2)
     fig.tight_layout(); fig.savefig(os.path.join(OUT, 'fig1_methods.png'), dpi=120)
     plt.close(fig)
 
@@ -137,7 +135,6 @@ def main():
     a.set_xticks([0, 1]); a.set_xticklabels(['empty', 'occupied'])
     a.set_yticks([0, 1]); a.set_yticklabels(['empty', 'occupied'])
     a.set_xlabel('Predicted'); a.set_ylabel('Actual')
-    a.set_title('Presence confusion (calibrated)', fontsize=10)
     for i in range(2):
         for j in range(2):
             a.text(j, i, cm[i, j], ha='center', va='center',
@@ -153,7 +150,6 @@ def main():
     for i, r in enumerate(rec):
         a.text(i, r + .01, f"{r:.2f}", ha='center', fontsize=9)
     a.set_ylim(0, 1); a.set_ylabel('Recall (correctly identified)')
-    a.set_title('Per-activity recall, unseen configuration', fontsize=10)
     fig.tight_layout(); fig.savefig(os.path.join(OUT, 'fig3_perclass_recall.png'), dpi=120)
     plt.close(fig)
 
@@ -171,7 +167,6 @@ def main():
     a.set_xticks(xs)
     a.set_xticklabels(['Short one-shot\nbaseline', 'Representative\nbaseline'])
     a.set_ylim(0, 1); a.set_ylabel('Score')
-    a.set_title('Effect of the empty-room calibration window', fontsize=10)
     for i, v in enumerate([er_contig, er_spread]):
         a.text(i - w / 2, v + .01, f"{v:.2f}", ha='center', fontsize=8)
     for i, v in enumerate([bal_contig, pres_cal['bal']]):
@@ -195,6 +190,7 @@ def main():
                                                 'balanced': float(bal_contig)},
                                  'spread': {'empty_recall': float(er_spread),
                                             'balanced': float(pres_cal['bal'])}}
+    M['presence']['confusion'] = cm.tolist()   # rows/cols = [empty, occupied]
     with open(os.path.join(OUT, 'metrics.json'), 'w') as f:
         json.dump(M, f, indent=2)
     print('Wrote figures + metrics to', OUT)

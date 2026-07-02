@@ -72,7 +72,17 @@
       ]
     },
     "empty_recall_calibrated": 0.8285714285714286,
-    "occ_recall_calibrated": 0.9556344276841171
+    "occ_recall_calibrated": 0.9556344276841171,
+    "confusion": [
+      [
+        116,
+        24
+      ],
+      [
+        50,
+        1077
+      ]
+    ]
   },
   "activity": {
     "rssi": {
