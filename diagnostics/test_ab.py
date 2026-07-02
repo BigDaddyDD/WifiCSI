@@ -2,10 +2,13 @@
 """A/B: does per-line parse+write slow the reader enough to stall the link?
 Same open, main thread, back to back."""
 import csv
+import os
 import sys
 import time
 
 import serial
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from log_csi import parse_line
 
 port = sys.argv[1] if len(sys.argv) > 1 else 'COM17'
