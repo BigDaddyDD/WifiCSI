@@ -1,0 +1,26 @@
+{
+  "segment": 22,
+  "label": "sit",
+  "position": "center",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 25,
+  "subject": "s1",
+  "room": "liv_room",
+  "placement": "p3",
+  "node_orientation": "vert",
+  "config": "p3/vert",
+  "session_type": "activity",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "174736",
+  "per_port": {
+    "COM17": {
+      "packets": 5605,
+      "drops": 0
+    }
+  }
+}

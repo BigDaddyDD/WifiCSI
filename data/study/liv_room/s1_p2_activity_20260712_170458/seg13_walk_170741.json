@@ -1,0 +1,26 @@
+{
+  "segment": 13,
+  "label": "walk",
+  "position": "",
+  "xy_in": null,
+  "path": "",
+  "direction": "L2R",
+  "duration_s": 8,
+  "subject": "s1",
+  "room": "liv_room",
+  "placement": "p2",
+  "node_orientation": "vert",
+  "config": "p2/vert",
+  "session_type": "activity",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "170741",
+  "per_port": {
+    "COM17": {
+      "packets": 601,
+      "drops": 0
+    }
+  }
+}

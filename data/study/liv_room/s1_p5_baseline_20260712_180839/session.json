@@ -1,0 +1,16 @@
+{
+  "room": "liv_room",
+  "subject": "s1",
+  "placement": "p5",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "node_orientation": "vert",
+  "config": "p5/vert",
+  "session_type": "baseline",
+  "port": "COM17",
+  "stream": "data\\study\\_live_stream.tsv",
+  "started": "20260712_180839",
+  "firmware": "AP-RX + STA-TX, core 2.0.17"
+}
