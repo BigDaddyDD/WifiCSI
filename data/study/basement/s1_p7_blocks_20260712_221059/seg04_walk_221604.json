@@ -1,0 +1,28 @@
+{
+  "segment": 4,
+  "label": "walk",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "walk continuously, vary your path",
+  "direction": "",
+  "duration_s": 120,
+  "subject": "s1",
+  "room": "basement",
+  "placement": "p7",
+  "node_orientation": "vert",
+  "config": "p7/vert",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "221604",
+  "per_port": {
+    "COM17": {
+      "packets": 11731,
+      "drops": 0
+    }
+  }
+}

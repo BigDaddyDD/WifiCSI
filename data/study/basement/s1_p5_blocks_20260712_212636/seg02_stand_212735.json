@@ -1,0 +1,28 @@
+{
+  "segment": 2,
+  "label": "stand",
+  "count": null,
+  "people": [],
+  "position": "stand still (pick a spot)",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 120,
+  "subject": "s1",
+  "room": "basement",
+  "placement": "p5",
+  "node_orientation": "vert",
+  "config": "p5/vert",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "212735",
+  "per_port": {
+    "COM17": {
+      "packets": 12004,
+      "drops": 0
+    }
+  }
+}

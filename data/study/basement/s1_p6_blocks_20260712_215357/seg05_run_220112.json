@@ -1,0 +1,28 @@
+{
+  "segment": 5,
+  "label": "run",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "jog continuously (in place / small loops)",
+  "direction": "",
+  "duration_s": 120,
+  "subject": "s1",
+  "room": "basement",
+  "placement": "p6",
+  "node_orientation": "vert",
+  "config": "p6/vert",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "220112",
+  "per_port": {
+    "COM17": {
+      "packets": 11594,
+      "drops": 0
+    }
+  }
+}

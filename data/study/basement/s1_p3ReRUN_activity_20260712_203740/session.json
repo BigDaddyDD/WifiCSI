@@ -1,0 +1,16 @@
+{
+  "room": "basement",
+  "subject": "s1",
+  "placement": "p3ReRUN",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "node_orientation": "vert",
+  "config": "p3ReRUN/vert",
+  "session_type": "activity",
+  "port": "COM17",
+  "stream": "data\\study\\_live_stream.tsv",
+  "started": "20260712_203740",
+  "firmware": "AP-RX + STA-TX, core 2.0.17"
+}

@@ -1,0 +1,26 @@
+{
+  "segment": 7,
+  "label": "run",
+  "position": "",
+  "xy_in": null,
+  "path": "",
+  "direction": "L2R",
+  "duration_s": 5,
+  "subject": "s1",
+  "room": "basement",
+  "placement": "p1",
+  "node_orientation": "vert",
+  "config": "p1/vert",
+  "session_type": "activity",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "192257",
+  "per_port": {
+    "COM17": {
+      "packets": 487,
+      "drops": 0
+    }
+  }
+}

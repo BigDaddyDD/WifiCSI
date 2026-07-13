@@ -1,0 +1,28 @@
+{
+  "segment": 18,
+  "label": "walk",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "",
+  "direction": "CW",
+  "duration_s": 18,
+  "subject": "s1",
+  "room": "basement",
+  "placement": "p3ReRUN",
+  "node_orientation": "vert",
+  "config": "p3ReRUN/vert",
+  "session_type": "activity",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "204153",
+  "per_port": {
+    "COM17": {
+      "packets": 1800,
+      "drops": 0
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "segment": 3,
+  "label": "sit",
+  "count": null,
+  "people": [],
+  "position": "sit still",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 120,
+  "subject": "s1",
+  "room": "basement",
+  "placement": "p6",
+  "node_orientation": "vert",
+  "config": "p6/vert",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "215655",
+  "per_port": {
+    "COM17": {
+      "packets": 11715,
+      "drops": 0
+    }
+  }
+}
