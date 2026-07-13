@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 ~$*
 .DS_Store
+
+# transient live-capture buffer — overwritten every recording session, ~30 MB
+data/study/_live_stream.tsv

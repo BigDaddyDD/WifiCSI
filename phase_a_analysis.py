@@ -47,12 +47,43 @@ from sklearn.metrics import (accuracy_score, balanced_accuracy_score,
 import csi_dataset as cd
 
 WIN, HOP = 200, 100
+RESAMPLE_FS = 100          # uniform grid (Hz) -> WIN/HOP and cd.FS stay valid
 CLASSES = ['empty', 'stand', 'sit', 'walk', 'run']
 ROOT = 'data/study/home_L'
 
 
-def load_seg(path):
-    amps, rssi = [], []
+def _resample(amp, rssi, tus, fs):
+    """Resample onto a uniform `fs` grid using the RX micro-second timestamps.
+
+    The received CSI samples are ~10 ms apart (100 Hz) in every environment;
+    what differs is how many packets are DROPPED (gaps). Interpolating onto a
+    uniform grid from `local_us` fills those gaps so the sampling is uniform and
+    the FFT frequency axis (assumed 100 Hz) is correct and comparable across
+    rooms. Near-identity for a clean stream; only reshapes lossy ones. Falls
+    back to the raw series if timestamps are unusable.
+    """
+    if len(tus) < 8 or np.any(tus < 0):
+        return amp, rssi
+    d = np.diff(tus)
+    if np.any(d < 0):                       # unwrap 32-bit micros() rollover
+        tus = tus.copy()
+        tus[1:] += np.cumsum(np.where(d < 0, 2.0 ** 32, 0.0))
+    t = (tus - tus[0]) / 1e6
+    inc = np.concatenate([[True], np.diff(t) > 0])
+    t, amp, rssi = t[inc], amp[inc], rssi[inc]
+    if len(t) < 8 or t[-1] <= 0:
+        return amp, rssi
+    grid = np.arange(0.0, t[-1], 1.0 / fs)
+    if len(grid) < 4:
+        return amp, rssi
+    ampU = np.empty((len(grid), amp.shape[1]))
+    for s in range(amp.shape[1]):
+        ampU[:, s] = np.interp(grid, t, amp[:, s])
+    return ampU, np.interp(grid, t, rssi)
+
+
+def load_seg(path, resample_fs=RESAMPLE_FS):
+    amps, rssi, tus = [], [], []
     with open(path) as f:
         for row in csv.DictReader(f):
             try:
@@ -69,11 +100,20 @@ def load_seg(path):
                 rssi.append(int(row['rssi']))
             except (ValueError, KeyError):
                 rssi.append(-100)
+            try:
+                tus.append(int(row['local_us']))
+            except (ValueError, KeyError):
+                tus.append(-1)
     if not amps:
         return np.empty((0, 0)), np.array([])
     L = max(set(len(x) for x in amps), key=[len(x) for x in amps].count)
     keep = [i for i, x in enumerate(amps) if len(x) == L]
-    return np.array([amps[i] for i in keep]), np.array([rssi[i] for i in keep])
+    amp = np.array([amps[i] for i in keep])
+    rs = np.array([rssi[i] for i in keep])
+    tu = np.array([tus[i] for i in keep], float)
+    if resample_fs:
+        amp, rs = _resample(amp, rs, tu, resample_fs)
+    return amp, rs
 
 
 def motion_frac(W):

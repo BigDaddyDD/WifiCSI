@@ -32,10 +32,17 @@ DEFAULT_STREAM = os.path.join('data', 'study', '_live_stream.tsv')
 FIELDS = ['pc_time', 'idx', 'rssi', 'rate', 'sig_mode', 'mcs', 'bw',
           'noise_floor', 'channel', 'local_us', 'n', 'csi']
 
+# Rebalanced 2026-07 toward the data-starved failing classes (sit, run).
+# Prior script over-sampled stand/walk; sit->stand and run->walk were the
+# confusions and run/sit had the fewest windows. Positions use real taped grid
+# spots (C3 prompts previously mislabeled -> now C2 to match the tape).
 SEGMENTS = [
-    ('empty', ''), ('stand', 'C3'), ('sit', 'C3'), ('stand', 'B2'),
-    ('stand', 'E4'), ('sit', 'E4'), ('walk', 'A1->F1'), ('walk', 'C1->C5'),
-    ('run', 'pace'), ('empty', ''),
+    ('empty', ''),
+    ('stand', 'C2'), ('stand', 'E4'),
+    ('sit', 'C2'), ('sit', 'E4'), ('sit', 'B2'),
+    ('walk', 'A1->F1'),
+    ('run', 'perimeter'), ('run', 'C1->C5'), ('run', 'in place @C3'),
+    ('empty', ''),
 ]
 COLORS = {'empty': '#607d8b', 'stand': '#e08a1e', 'sit': '#e08a1e',
           'walk': '#c0392b', 'run': '#8e44ad'}
