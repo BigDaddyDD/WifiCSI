@@ -135,8 +135,7 @@ para(doc, "RandomForest is the current pipeline's model (bold). “Cross-placeme
 
 figure(doc, "fig7_model_comparison.png",
        "Figure 7. Cross-placement balanced accuracy for every model, sorted by "
-       "activity score. Presence (blue) and 5-class activity (orange). The dashed "
-       "line marks presence chance (0.50).")
+       "activity score. Presence (blue) and 5-class activity (orange).")
 
 # --- Findings ---
 heading(doc, "What the comparison shows")

@@ -41,15 +41,18 @@ def rf():
                                   n_jobs=-1, class_weight='balanced')
 
 
-def real_dataset_totals():
-    """Honest totals over the GOOD sessions actually used (no inflation)."""
+def real_dataset_totals(rooms=('home_L', 'basement')):
+    """Honest totals over the GOOD sessions actually used by THIS model (no
+    inflation). Restricted to `rooms` — the same rooms passed to al.build() —
+    so unrelated data (e.g. the antenna_test/basement_antenna_test rooms added
+    later) never silently leaks into the main model's reported totals."""
     secs = pkts = 0
     sessions = 0
     for sj in glob.glob('data/study/*/*/session.json'):
-        d = os.path.dirname(sj)
-        room = os.path.basename(os.path.dirname(sj))
+        d = os.path.dirname(sj)                       # session dir
+        room = os.path.basename(os.path.dirname(d))   # room dir (one level up)
         base = os.path.basename(d)
-        if room == 'liv_room':               # weak link: excluded
+        if room not in rooms:
             continue
         if 'p9' in base:                      # weak-link config: excluded
             continue

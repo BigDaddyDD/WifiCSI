@@ -341,7 +341,6 @@ def main():
     ax.set_yticks(yy); ax.set_yticklabels(names)
     ax.invert_yaxis()
     ax.set_xlim(0, 1.0); ax.set_xlabel('Balanced accuracy (cross-placement, held-out)')
-    ax.axvline(0.5, color='gray', ls='--', lw=0.8)
     ax.legend(fontsize=8, loc='lower right')
     fig.tight_layout()
     fig.savefig(os.path.join(OUT, 'fig7_model_comparison.png'), dpi=120)

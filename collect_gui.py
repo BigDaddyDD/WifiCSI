@@ -46,6 +46,16 @@ COLORS = {'empty': '#455a64', 'stand': '#e08a1e', 'sit': '#c98a20',
 DIRTEXT = {'R2L': 'right → left', 'L2R': 'left → right',
            'CW': 'clockwise loop', 'CCW': 'counter-clockwise loop', '': ''}
 
+# --- live link-health monitor (tails the stream file; never touches serial) ---
+HEALTH_POLL_MS = 700       # how often to re-assess the link
+HEALTH_WINDOW = 2.5        # seconds of recent stream used for each assessment
+TAIL_BYTES = 262144        # only read the last chunk of the (large) stream file
+RATE_OK, RATE_BAD = 85, 60         # packets/s: >=OK green, <BAD red
+LOSS_WARN, LOSS_BAD = 5.0, 15.0    # percent dropped: >WARN yellow, >BAD red
+RSSI_WARN = -57                    # dBm: weaker than this is flagged
+HEALTH_BG = {'ok': '#2e7d32', 'warn': '#f9a825', 'alarm': '#b71c1c',
+             'idle': '#37474f'}
+
 
 def instruction(seg):
     if seg.get('prompt'):                    # custom multi-line text (e.g. 2-person)
@@ -88,6 +98,72 @@ def _read_stream(path):
     return out
 
 
+def _tail_stream(path, nbytes=TAIL_BYTES):
+    """Read only the last `nbytes` of the (potentially large, still-growing)
+    stream file and return the recent [(pc_time, raw), ...]. Cheap enough to
+    poll a few times per second even while the logger appends to it."""
+    try:
+        sz = os.path.getsize(path)
+        with open(path, 'rb') as f:
+            if sz > nbytes:
+                f.seek(sz - nbytes)
+                f.readline()                 # drop the partial first line
+            data = f.read().decode('utf-8', 'replace')
+    except OSError:
+        return []
+    out = []
+    for ln in data.splitlines():
+        tab = ln.find('\t')
+        if tab < 0:
+            continue
+        try:
+            pc = float(ln[:tab])
+        except ValueError:
+            continue
+        out.append((pc, ln[tab + 1:]))
+    return out
+
+
+def assess_link(path, now=None):
+    """Assess the last ~HEALTH_WINDOW seconds of the stream: packet rate, packet
+    loss (from gaps in the RX idx counter) and mean RSSI. Returns a dict with a
+    'level' in {idle, ok, warn, alarm} and a human message."""
+    now = time.time() if now is None else now
+    recent = [(pc, raw) for pc, raw in _tail_stream(path)
+              if now - pc <= HEALTH_WINDOW]
+    if len(recent) < 3:
+        return {'level': 'alarm',
+                'msg': '⚠ NO CSI DATA — is stream_logger running?  '
+                       'if yes, power-cycle BOTH ESPs',
+                'rate': 0.0, 'loss': 0.0, 'rssi': None}
+    span = max(recent[-1][0] - recent[0][0], 1e-3)
+    rate = (len(recent) - 1) / span
+    idxs, rssis = [], []
+    for _pc, raw in recent:
+        r = parse_line(raw)
+        if r is None:
+            continue
+        idxs.append(r['idx']); rssis.append(r['rssi'])
+    drops = expected = 0
+    for a, b in zip(idxs, idxs[1:]):
+        if b > a:                            # ignore counter resets/reconnects
+            drops += b - a - 1
+            expected += b - a
+    loss = 100.0 * drops / expected if expected else 0.0
+    rssi = sum(rssis) / len(rssis) if rssis else None
+    rss = f'{rssi:.0f} dBm' if rssi is not None else '—'
+    stat = f'{rate:.0f} Hz · loss {loss:.0f}% · RSSI {rss}'
+    if rate < RATE_BAD or loss > LOSS_BAD:
+        return {'level': 'alarm', 'rate': rate, 'loss': loss, 'rssi': rssi,
+                'msg': f'⚠ BAD LINK — {stat}.  Move nodes closer / re-aim, or '
+                       'power-cycle BOTH ESPs, then RE-RECORD'}
+    if rate < RATE_OK or loss > LOSS_WARN or (rssi is not None and rssi < RSSI_WARN):
+        return {'level': 'warn', 'rate': rate, 'loss': loss, 'rssi': rssi,
+                'msg': f'weak link — {stat}.  Consider moving nodes closer'}
+    return {'level': 'ok', 'rate': rate, 'loss': loss, 'rssi': rssi,
+            'msg': f'link OK — {stat}'}
+
+
 class App:
     def __init__(self, root, args, segments, session_type):
         self.root = root
@@ -125,6 +201,15 @@ class App:
         self.f_instr = tkfont.Font(family='Helvetica', size=50, weight='bold')
         self.f_phase = tkfont.Font(family='Helvetica', size=24, weight='bold')
         self.f_timer = tkfont.Font(family='Helvetica', size=140, weight='bold')
+        self.f_health = tkfont.Font(family='Helvetica', size=15, weight='bold')
+        # live link-health banner (top strip, always visible)
+        self._last_level = None
+        self.health_after = None
+        self.health_var = tk.StringVar(value='checking link…')
+        self.health_lbl = tk.Label(root, textvariable=self.health_var,
+                                   font=self.f_health, fg='white',
+                                   bg=HEALTH_BG['idle'], anchor='center')
+        self.health_lbl.pack(side='top', fill='x', ipady=6)
         self.progress_var = tk.StringVar(
             value=f'{len(segments)} segments · {total}s recording total')
         self.instr_var = tk.StringVar(value='Start stream_logger, then click START')
@@ -148,6 +233,16 @@ class App:
                   bg='#555', fg='white', width=6).pack(side='left', padx=8)
         root.protocol('WM_DELETE_WINDOW', self.quit)
         root.bind('<Configure>', self._on_resize)
+        self._health_loop()                  # start monitoring the link now
+
+    def _health_loop(self):
+        h = assess_link(self.stream)
+        self.health_var.set(h['msg'])
+        self.health_lbl.configure(bg=HEALTH_BG[h['level']])
+        if h['level'] == 'alarm' and self._last_level != 'alarm':
+            self.root.bell()                 # audible cue only on entering alarm
+        self._last_level = h['level']
+        self.health_after = self.root.after(HEALTH_POLL_MS, self._health_loop)
 
     def _on_resize(self, event):
         """Scale fonts + wrap the instruction to the current window size so the
@@ -159,7 +254,9 @@ class App:
         self.f_instr.configure(size=max(14, int(h * 0.085)))
         self.f_phase.configure(size=max(12, int(h * 0.040)))
         self.f_timer.configure(size=max(28, int(h * 0.23)))
+        self.f_health.configure(size=max(11, int(h * 0.028)))
         self.instr_lbl.configure(wraplength=max(200, w - 40))
+        self.health_lbl.configure(wraplength=max(200, w - 20))
 
     def _stream_size(self):
         try:
@@ -235,6 +332,7 @@ class App:
 
     def _finalize(self):
         rows = _read_stream(self.stream)
+        self.bad_segs = []
         for seg in self.segments:
             label = seg['label']
             prefix = os.path.join(self.sdir, f"seg{seg['idx']:02d}_{label}_{seg['ts']}")
@@ -254,6 +352,10 @@ class App:
                         if last is not None and r['idx'] > last + 1:
                             drops += r['idx'] - last - 1
                         last = r['idx']
+            loss = 100.0 * drops / (cnt + drops) if (cnt + drops) else 100.0
+            if cnt < int(seg['dur']) * RATE_BAD or loss > LOSS_BAD:
+                self.bad_segs.append(
+                    f"seg{seg['idx']:02d} {label}: {cnt} pkts, {loss:.0f}% loss")
             pos = seg.get('pos', '')
             meta = {'segment': seg['idx'], 'label': label,
                     'count': seg.get('count'), 'people': seg.get('people', []),
@@ -274,13 +376,21 @@ class App:
     def done(self):
         self.instr_var.set('Saving...'); self.timer_var.set(''); self.root.update()
         self._finalize()
-        self.root.configure(bg='#1b5e20'); self.instr_lbl.configure(bg='#1b5e20')
+        bad = getattr(self, 'bad_segs', [])
+        col = '#b71c1c' if bad else '#1b5e20'
+        self.root.configure(bg=col); self.instr_lbl.configure(bg=col)
         self.progress_var.set('Session complete')
-        self.instr_var.set('DONE ✔')
-        self.phase_var.set('  '.join(f'{k}:{v}' for k, v in self.tally.items()))
+        if bad:
+            self.instr_var.set('DONE — BAD SEGMENTS, RE-RECORD:\n' + '\n'.join(bad))
+            print('BAD SEGMENTS in', self.sdir, '->', bad)
+        else:
+            self.instr_var.set('DONE ✔')
+            self.phase_var.set('  '.join(f'{k}:{v}' for k, v in self.tally.items()))
         print('Saved session to', self.sdir)
 
     def quit(self):
+        if self.health_after:
+            self.root.after_cancel(self.health_after)
         if self.after_id:
             self.root.after_cancel(self.after_id)
         if self.segments:

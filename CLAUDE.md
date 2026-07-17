@@ -1,6 +1,6 @@
 # CSI Presence Sensing — Project State & Agent Handoff
 
-Last updated: 2026-07-02. This file is the onboarding doc for any agent working
+Last updated: 2026-07-16. This file is the onboarding doc for any agent working
 in this workspace. Read it fully before touching anything.
 
 ## 1. What this project is
@@ -150,6 +150,135 @@ config-based calibration, discovers data/study/<room>):**
   p3ReRUN is the good p3 activity (its config tag is p3ReRUN/vert, calibrates
   off its own brackets). analyze_liv.py has a calibration-source diagnostic
   (baseline / brackets / allspread).
+
+## 4c. Model-family comparison & antenna portability (2026-07-13 to 2026-07-16)
+
+- **Model comparison (`model_comparison.py`, boss request "how would CNNs/deep
+  learning do?"):** 10 model families under one FIXED protocol (same data,
+  same per-config empty-baseline calibration, same leave-one-config-out) — 8
+  classical models on the 160-D features + a 1D-CNN and GRU on raw calibrated
+  windows. RESULT: no model beats the RandomForest baseline cross-placement —
+  every classical model lands 0.37–0.46 balanced 5-class (RF 0.42); the 1D-CNN
+  is nominally highest (0.46) but far worse at presence (0.59 vs RF 0.84) since
+  it doesn't exploit the empty-baseline calibration the way engineered features
+  do. Per-install, simpler linear models (logistic reg 0.85, RBF-SVM 0.83) edge
+  out RF (0.79) once calibrated on-site. CONCLUSION: cross-placement activity is
+  model-independent — the ceiling is the single-antenna sensor, not the
+  algorithm. RF stays the default (fast, interpretable, tied for best).
+  `docs/model_report_assets/fig7_model_comparison.png` + `model_comparison.json`.
+- **Antenna portability test (`data/study/antenna_test/`, `basement_antenna_test/`,
+  `gen_antenna_figs.py`):** boss asked whether the trained model plug-and-plays
+  onto different hardware (Taoglas WDMP.2458.A UFL antenna; eventually a
+  different capture device — Alfa AWUS036ACHM was proposed but its MT7610U
+  chipset CANNOT do CSI, only Intel 5300/AX200/AX210, Atheros QCA9300, Nexmon,
+  or ESP32 can). Recorded stock vs Taoglas antenna at 3 basement placements
+  (p1/p2/p3), same protocol (baseline + blocks). **p2/stock blocks session is
+  DEAD (0 packets, RX serial stall — never recorded, needs redo if p2/stock
+  activity data is wanted).** One baseline was mislabeled p1 when it was
+  actually p2/stock (fixed on disk 2026-07-16: renamed folder + corrected
+  `session.json`/seg json `placement`/`config` fields).
+  RESULT: **per-install (each antenna calibrated+evaluated on its own data)
+  works fine for both** — stock 0.72 balanced, Taoglas 0.77 (Taoglas ~10 dB
+  stronger RSSI, tracks the established link-quality-drives-accuracy finding).
+  **Cross-antenna transfer (train on one, test on the other, zero retrain)
+  COLLAPSES to chance** — 5-class 0.18 balanced (chance 0.20), presence 0.49
+  (chance 0.50) — replicates and firms up the earlier single-position antenna
+  finding across 3 orientations. CONCLUSION FOR LEADERSHIP: a new antenna/device
+  is NOT a drop-in swap; CSI is hardware-specific (raw amplitude signature
+  differs per antenna even for the identical physical scene) — what transfers
+  is the collection protocol + feature pipeline + labeling scheme, not the
+  trained model. New hardware needs its own calibration pass (minimum) or
+  retraining (for full accuracy).
+  `docs/model_report_assets/fig8_confusion_antenna.png` (stock vs Taoglas
+  per-install confusion) + `fig9_antenna_transfer.png` (same-antenna vs
+  cross-antenna bar chart). NEXT: 2-3 more stock/Taoglas position pairs to
+  firm up the confidence interval (currently thin: stock n=2 configs, Taoglas
+  n=3 configs).
+- **Tree/feature visualizations for the boss (`gen_tree_figs.py`):**
+  `fig10_feature_importance.png` (top-15 real feature importances from the
+  production 300-tree forest — dominated by deviation-from-empty summary
+  features: max/mean relative amplitude change, overall L2 deviation; no single
+  subcarrier dominates) and `fig11_tree_diagram.png` — **the actual first tree
+  of the real production forest, `clf.estimators_[0]`, whole** (depth 36, 850
+  leaves, 1,699 nodes, ALL drawn, nothing truncated).
+  **User feedback history on this figure (2026-07-16 → 2026-07-17), each round
+  correcting the previous:** (1) rejected a conceptual "how ensembles work"
+  schematic (`gen_forest_diagram.py` → `fig12_forest_ensemble.png`, dataset→
+  trees→vote, no real data) — wanted the actual tree, deleted; (2) a depth-3-
+  capped real tree wasn't "whole" (a depth cap truncates a tree that would keep
+  splitting) and boxes had too much detail (`value=[...]` proportions); (3) a
+  `min_samples_leaf=180` fully-terminated-but-smaller stand-alone tree (41
+  nodes) was STILL not what was wanted — user explicitly wanted the actual
+  production tree with all its real nodes/parameters, "does not need to be
+  detailed, just a good representation." FINAL approach (implemented in
+  `gen_tree_figs.py`): extract `clf.estimators_[0]` directly (genuinely one of
+  the 300 real trees, unrestricted growth, exactly as trained) and render
+  EVERY node via a custom layout (`build_row_rescaled_layout`) — nodes at
+  depth ≤ 5 (63 of 1,699) get real labeled boxes (split feature/threshold,
+  sample %, majority class, using abbreviated `short_feature_names` so text
+  fits); nodes deeper than that (1,636 of them, down to depth 36) are drawn as
+  small dots colored by majority class — still the real node/edge, just
+  unlabeled since 1,699 text boxes cannot fit in one legible image. The key
+  layout trick: space each DEPTH LEVEL independently across the same shared
+  width (rather than positioning by descendant-leaf-count, which is what a
+  naive layout does and is what made earlier attempts either overlap or waste
+  huge space) — this is what makes a real, wildly-imbalanced 1,699-node tree
+  renderable as one ~4660×1600px, ~1.1 MB image at all. No in-image caption/
+  title (project convention); a legend (empty/stand/sit/walk/run colors) is
+  the only text outside the tree itself.
+- **Live link-health monitor added to `collect_gui.py` (2026-07-16):** the
+  GUI now tails the stream file every ~0.7 s (never touches serial — respects
+  the tkinter-serial curse) and shows a color banner (green/yellow/red) with
+  live packet rate, loss %, and RSSI; red = alarm (bad link or no data at all)
+  with a bell + explicit instruction to move nodes/re-aim or power-cycle both
+  ESPs. End-of-session summary also lists any segment that finished bad so it's
+  obvious what to re-record. This directly targets failures like the dead
+  p2/stock recording above. Thresholds: rate <60 Hz or loss >15% = alarm; rate
+  <85 Hz or loss >5% or RSSI < −57 dBm = warn.
+- **BUGFIX 2026-07-17 — `gen_model_report.py`'s `real_dataset_totals()` was
+  silently over-counting:** it derived "room" from `os.path.basename(os.path.
+  dirname(sj))` where `sj` was the session.json path — that's actually the
+  SESSION folder name, one level too shallow (needs `dirname(dirname(sj))` to
+  reach the room folder). Net effect: its `room == 'liv_room'` exclusion check
+  NEVER matched (session folders are named like `s1_p1_baseline_...`, never
+  literally `liv_room`), so liv_room's recording time/packets were being added
+  into the "dataset totals" text even though the actual model (`al.build(
+  ['home_L','basement'])`) never trains on liv_room. Only the `'p9' in base`
+  check happened to work (p9 IS in the session folder name). CORRECTED totals
+  for the real home_L+basement model: **20 sessions, 113 min (1.9 hr), 669,353
+  packets** (previously mis-reported as 29 sessions / 160 min / 910,071 packets
+  — that was home_L+basement+liv_room combined). The window count (4,971) and
+  all modeling numbers (presence/activity balanced accuracy) were NEVER
+  affected — this bug only touched the printed/reported raw-recording totals
+  text, not any figure or trained-model result. `real_dataset_totals()` now
+  takes a `rooms=` parameter (default `('home_L','basement')`) so it can never
+  silently sweep in a room outside the ones actually passed to `al.build()` —
+  this matters going forward since new room folders keep appearing
+  (antenna_test, basement_antenna_test are NOT part of the main model and must
+  stay excluded from its reported totals).
+- **Deliverables this week:** `docs/CSI_Model_Comparison.docx` (model
+  comparison table + fig7), `docs/CSI_Progress_Update.docx` (recap doc),
+  `docs/CSI_Week_Update_Slides.pptx` (9-slide brief deck: title, this week,
+  **the dataset** [corrected totals above], model comparison, one real tree,
+  feature importance, antenna confusion matrices, plug-and-play transfer
+  result, status/next — plain white/black/Arial, no theme, minimal per-slide
+  text by design so the user rewrites in their own voice) + matching
+  `docs/CSI_Week_Update_TalkingPoints.docx` (full presenter explanation per
+  slide, Times New Roman 12, incl. a one-liner per model family tested + what
+  the "160 engineered features" breakdown actually is [3×52 per-subcarrier
+  measures + 4 summary stats] + the recalibration-vs-retraining distinction:
+  calibration = re-center against the new antenna's own empty capture, always
+  done; retraining = actually fitting new decision boundaries on THAT
+  antenna's own labeled activity data, which is what per-install actually
+  does and cross-antenna transfer skips). Builders live in `slides_assets/`.
+  **No dashed chance-line (or anything representing chance) on any graph** —
+  removed `axhline`/`axvline` 0.5 lines from `gen_antenna_figs.py` (fig9) and
+  `model_comparison.py` (fig7); antennas named explicitly ("ESP32 stock
+  antenna" / "Taoglas antenna") rather than generic "same/different antenna" —
+  fig9 plots 3 bars per group (stock per-install, Taoglas per-install,
+  cross-antenna transfer). Regenerate fig7 cheaply with
+  `python model_comparison.py figure` (reuses `model_comparison.json`, skips
+  the ~10 min retrain of all 10 model families).
 
 Room: `home_L` (in `data/rooms.json`) — L-shaped, bottom 150 in, left 124 in,
 right 314 in; taped grid cols A–F (x = 0..150 in, 30 in step), rows 1–5
