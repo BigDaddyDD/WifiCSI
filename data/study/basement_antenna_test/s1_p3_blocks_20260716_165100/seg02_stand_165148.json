@@ -1,0 +1,28 @@
+{
+  "segment": 2,
+  "label": "stand",
+  "count": null,
+  "people": [],
+  "position": "stand still (pick a spot)",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 120,
+  "subject": "s1",
+  "room": "basement_antenna_test",
+  "placement": "p3",
+  "node_orientation": "taoglas",
+  "config": "p3/taoglas",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "165148",
+  "per_port": {
+    "COM17": {
+      "packets": 8437,
+      "drops": 1892
+    }
+  }
+}

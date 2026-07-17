@@ -1,0 +1,28 @@
+{
+  "segment": 1,
+  "label": "empty",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 90,
+  "subject": "s1",
+  "room": "basement_antenna_test",
+  "placement": "p2",
+  "node_orientation": "taoglas",
+  "config": "p2/taoglas",
+  "session_type": "baseline",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "161617",
+  "per_port": {
+    "COM17": {
+      "packets": 5575,
+      "drops": 2566
+    }
+  }
+}

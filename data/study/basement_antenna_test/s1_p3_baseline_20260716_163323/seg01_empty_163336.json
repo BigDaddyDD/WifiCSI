@@ -1,0 +1,28 @@
+{
+  "segment": 1,
+  "label": "empty",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 90,
+  "subject": "s1",
+  "room": "basement_antenna_test",
+  "placement": "p3",
+  "node_orientation": "stock",
+  "config": "p3/stock",
+  "session_type": "baseline",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "163336",
+  "per_port": {
+    "COM17": {
+      "packets": 6459,
+      "drops": 408
+    }
+  }
+}

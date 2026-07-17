@@ -1,0 +1,16 @@
+{
+  "room": "basement_antenna_test",
+  "subject": "s1",
+  "placement": "p2",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "node_orientation": "taoglas",
+  "config": "p2/taoglas",
+  "session_type": "blocks",
+  "port": "COM17",
+  "stream": "data\\study\\_live_stream.tsv",
+  "started": "20260716_161844",
+  "firmware": "AP-RX + STA-TX, core 2.0.17"
+}

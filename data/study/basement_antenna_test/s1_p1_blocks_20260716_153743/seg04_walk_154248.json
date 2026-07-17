@@ -1,0 +1,28 @@
+{
+  "segment": 4,
+  "label": "walk",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "walk continuously, vary your path",
+  "direction": "",
+  "duration_s": 120,
+  "subject": "s1",
+  "room": "basement_antenna_test",
+  "placement": "p1",
+  "node_orientation": "taoglas",
+  "config": "p1/taoglas",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "154248",
+  "per_port": {
+    "COM17": {
+      "packets": 11905,
+      "drops": 0
+    }
+  }
+}
