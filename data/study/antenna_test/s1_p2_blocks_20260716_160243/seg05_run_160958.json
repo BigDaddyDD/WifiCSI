@@ -1,0 +1,28 @@
+{
+  "segment": 5,
+  "label": "run",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "jog continuously (in place / small loops)",
+  "direction": "",
+  "duration_s": 120,
+  "subject": "s1",
+  "room": "antenna_test",
+  "placement": "p2",
+  "node_orientation": "stock",
+  "config": "p2/stock",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "160958",
+  "per_port": {
+    "COM17": {
+      "packets": 0,
+      "drops": 0
+    }
+  }
+}

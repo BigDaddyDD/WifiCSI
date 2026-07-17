@@ -1,0 +1,28 @@
+{
+  "segment": 3,
+  "label": "sit",
+  "count": null,
+  "people": [],
+  "position": "sit still",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 120,
+  "subject": "s1",
+  "room": "antenna_test",
+  "placement": "p1",
+  "node_orientation": "stock",
+  "config": "p1/stock",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "COM17": ""
+  },
+  "ts": "152207",
+  "per_port": {
+    "COM17": {
+      "packets": 11572,
+      "drops": 0
+    }
+  }
+}
