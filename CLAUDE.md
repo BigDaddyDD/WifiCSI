@@ -1,6 +1,6 @@
 # CSI Presence Sensing — Project State & Agent Handoff
 
-Last updated: 2026-07-16. This file is the onboarding doc for any agent working
+Last updated: 2026-07-21. This file is the onboarding doc for any agent working
 in this workspace. Read it fully before touching anything.
 
 ## 1. What this project is
@@ -426,6 +426,310 @@ its findings and code (esp. `breathing_feats`) are reusable.
   experiments (see its README).
 - `data/study/` = the real dataset; `data/study_bad/` = quarantine;
   `data/av/` + `data/raw/` = office-era data.
+- `firmware/csi_rx_wifi/` = wireless RX variant (§4d); `model_store/` = the
+  persisted live-inference model (`live_model.joblib`, from
+  `train_live_model.py` — regenerate after any change to the feature pipeline
+  or training data, it is NOT auto-rebuilt).
+
+## 4d. Wireless live monitor + collection-efficiency brainstorm (2026-07-21)
+
+**Boss ask:** (1) a GUI that runs wirelessly — walk around with the laptop
+while the ESPs stay fixed, watch it classify presence/activity live; (2) a
+faster alternative to the blocks protocol (it takes a long time to record).
+
+**Wireless architecture (built, NOT yet hardware-tested by the user):**
+- `firmware/csi_rx_wifi/csi_rx_wifi.ino` — same SoftAP/CSI config as
+  `csi_rx.ino` (TX firmware is UNCHANGED, still pairs identically), plus a TCP
+  server on port 3333. The laptop joins the RX's own `csi_link` Wi-Fi hotspot
+  like any normal Wi-Fi network (no code — just Windows Wi-Fi settings) and
+  connects a TCP socket to `192.168.4.1:3333` to read the same `CSI_DATA,...`
+  lines that used to only go over USB serial. USB serial output is KEPT for
+  debugging. CAVEAT: the laptop loses its normal internet while joined to the
+  RX's hotspot (single Wi-Fi adapter) — acceptable for a demo, a second
+  adapter/phone-hotspot bridge would fix it later if it becomes annoying.
+  RISK NOTE (flagged in the firmware comments, untested): the TCP write
+  happens directly inside the ~97 Hz CSI callback; if the board destabilizes
+  under that load, move the socket write into `loop()` via a small ring buffer
+  instead.
+- `train_live_model.py` — trains the SAME recipe as `gen_model_report.py`
+  (per-config empty-baseline calibration, empty capped, RandomForest(300,
+  balanced)) on ALL pooled home_L+basement data (no held-out fold — this is
+  the deployed model) and persists it + the active-subcarrier mask to
+  `model_store/live_model.joblib`. Does NOT bake in an empty-room baseline —
+  per-install calibration is the whole reason this model generalizes at all,
+  so the live app always captures a fresh baseline at wherever it's running.
+- `live_monitor_gui.py` — connects to the RX over the TCP socket above
+  (reader runs on a background thread; Tk only reads snapshots, no socket I/O
+  on the UI thread), lets you **capture an empty-room baseline** (default 60s,
+  `--baseline-secs`), then **live-classifies** the last 2s of CSI once/second
+  using the persisted model calibrated against that baseline, showing a big
+  color-coded presence+activity label, a per-class confidence bar for each of
+  the 5 classes, a link-health banner (rate/RSSI, same idea as
+  `collect_gui.py`'s monitor), and a scrolling prediction log. Feature math
+  (`window_features`, `raw_feature_vec`, `compute_baseline`) deliberately
+  mirrors `analyze_liv.py`'s `calibrated()`/`build()` exactly so live features
+  match what the model was trained on — `analyze_liv.build()` was extended to
+  also return the active-subcarrier `mask` array (previously only its count
+  `nsc` was exposed) since the live pipeline needs the literal mask, not just
+  its size. **VALIDATED 2026-07-21 on real hardware**: flashed `csi_rx_wifi`
+  to the RX (COM17) via arduino-cli — upload failed 3x with esptool's classic
+  XIAO-C3 symptom ("No serial data received" right after the baud-rate
+  handshake, both at 921600 and 115200) even though compilation was always
+  clean; this needed a MANUAL bootloader entry (user held BOOT, tapped RESET)
+  since the auto-reset-into-bootloader circuit didn't fire reliably over
+  USB-CDC — arduino-cli/esptool could not do this step remotely. After that,
+  upload succeeded and the serial boot log confirmed everything: SoftAP
+  `csi_link` up on channel 1 at 192.168.4.1, CSI enabled, TCP server on 3333
+  waiting. (Aside: forcing a fresh boot-log read required toggling DTR/RTS
+  via pyserial to hardware-reset the board — opening the port alone doesn't
+  replay past boot output, and a plain Wi-Fi scan is NOT a reliable way to
+  check if a SoftAP is up, since this laptop's adapter restricts scans while
+  connected to another network and only returns its own SSID.)
+
+## 4e. Dual-antenna wireless recording rig (2026-07-21)
+
+**⚠ The "join csi_link with a second Wi-Fi adapter" networking approach
+described below was ABANDONED — see §4f for why and what replaced it (RX
+joins the home Wi-Fi directly, no second adapter, and it's now full-rate
+~97Hz besides).** The dual-antenna SSID/channel/subnet split between the two
+RX firmwares (still relevant) and the `collect_gui.py`/`wifi_stream_logger.py`
+multi-source software (still relevant, unchanged) are both still current;
+only the "laptop joins two isolated networks via two adapters" part is dead.
+
+**Boss/user vision confirmed and built**: both TX boards on wall power in one
+part of the room, both RX boards on wall power in another part, laptop walks
+around free, click Start, and it records BOTH antennas (stock + Taoglas)
+simultaneously in one pass with the new shortened blocks protocol — directly
+comparable data, and roughly halves total antenna-comparison collection time
+versus recording each antenna separately (what `antenna_test`/
+`basement_antenna_test` did in July).
+
+**Dual Wi-Fi adapter**: user has a TP-Link Archer T2U Nano USB dongle — this
+is the answer to "normal Wi-Fi + ESP at the same time" for the SINGLE-antenna
+live monitor too (built-in adapter stays on the home network, dongle joins
+`csi_link`); no firmware changes needed for that. For the dual-antenna RECORDING
+case below, BOTH adapters are dedicated to the two ESP networks (no internet
+during a recording session) since that's what's actually needed.
+
+**Why two separate SSID/channel/subnet, not just two TCP ports:**
+- `firmware/csi_rx_wifi/csi_rx_wifi.ino` (pair 1, e.g. Taoglas): SSID
+  `csi_link`, channel 1, IP 192.168.4.1 (unchanged, already validated above).
+- `firmware/csi_rx_wifi2/csi_rx_wifi2.ino` (pair 2, e.g. stock, NEW, untested
+  on hardware — compiles clean, not yet flashed to the 2 spare ESPs): SSID
+  `csi_link2`, channel 6 (non-overlapping from channel 1, avoids PHY-level
+  collision when both links run simultaneously in the same room), IP
+  192.168.5.1 via `WiFi.softAPConfig()` (a DIFFERENT subnet, not just a
+  different port — this is what lets a laptop joined to BOTH networks at once,
+  one per Wi-Fi adapter, reach both RX boards with zero local IP ambiguity;
+  Windows routes each destination subnet out the matching adapter
+  automatically, no manual interface binding needed).
+- `firmware/csi_tx2/csi_tx2.ino` — pairs with `csi_rx_wifi2` exactly like
+  `csi_tx.ino` pairs with `csi_rx_wifi` (only SSID/RX_IP differ). TX boards
+  need no other changes ever — they're just UDP metronomes.
+
+**Software (`wifi_stream_logger.py` + generalized `collect_gui.py`):**
+- `wifi_stream_logger.py` is the wireless "Terminal A" — replaces
+  `stream_logger.py` for this use case. Takes repeatable `--source
+  tag=host:port` args (e.g. `--source taoglas=192.168.4.1:3333 --source
+  stock=192.168.5.1:3333`), one TCP connection per tag on its own thread
+  (auto-reconnects on drop, same idea as `live_monitor_gui.py`'s `CSIStream`),
+  writing each to `data/study/_live_stream_<tag>.tsv` in the EXACT SAME format
+  `stream_logger.py` always used — so every existing file-reading function in
+  `collect_gui.py` (`_read_stream`, `_tail_stream`, `assess_link`) needed zero
+  changes.
+- `collect_gui.py` generalized from one hardcoded `self.port`/`self.stream` to
+  a `self.sources` list (`[{tag, stream, sdir}, ...]`), gated by a NEW
+  `--sources taoglas,stock` CLI flag (comma-separated tags; derives each
+  stream path by the convention above). **The legacy single-serial-port path
+  (`--ports COM17`, no `--sources`) is BYTE-FOR-BYTE unchanged** — verified
+  with a regression test (directory naming, session.json shape, CSV output all
+  identical). In `--sources` mode: each tag gets its OWN session directory
+  (`..._blocks_<ts>__<tag>/`) with its own `session.json`
+  (`node_orientation`=tag, `config`=placement/tag — same convention the
+  antenna_test data already used), since one recording pass now produces what
+  used to take two separate sessions. Health banner shows both sources'
+  stats (worst level wins the banner color); the low-packet-count segment
+  warning uses whichever source did worse. `collect_blocks.py` (and every
+  other `collect_*.py` script) needed ZERO changes — `--sources` flows through
+  `base_argparser()`/`run()` automatically.
+- **VALIDATED end-to-end against mocks (real hardware for pair 2 not yet
+  flashed):** both new firmware sketches compile clean; `wifi_stream_logger.py`
+  connects to two mock TCP servers simultaneously and writes two correctly
+  formatted stream files; `collect_gui.App` in `--sources` mode correctly
+  creates two tagged session dirs, slices a fabricated segment into two
+  per-tag CSV+JSON pairs with correct `config`/`node_orientation`/packet
+  counts; the legacy single-port path was re-verified unchanged in the same
+  test run.
+- **HARDWARE STATUS 2026-07-21/22:** of the 2 spare ESP32-**S3** boards meant
+  for the stock-antenna pair, one is DEFECTIVE — every upload attempt (both
+  arduino-cli and, decisively, the Arduino IDE's own upload) hung at a Windows
+  USB semaphore timeout (error 121) opening its COM port, even after manual
+  BOOT+RESET bootloader entry, full physical unplug/replug on multiple
+  cables/USB ports, and confirming no program (Serial Monitor etc.) had the
+  port locked — ruled out everything software/config-side (board options were
+  already correct: USB Mode "Hardware CDC and JTAG", the recommended default).
+  The OTHER spare S3 flashed `csi_rx_wifi2` successfully first try via the
+  Arduino IDE — so this is a genuinely bad unit, not a firmware/setup problem.
+  Net effect: only ONE working new board exists right now (flashed as RX2 /
+  stock-antenna receiver) — not enough for a complete second RX+TX pair, so
+  the dual-antenna wireless recording rig (§4e) is BLOCKED until a replacement
+  S3 arrives ("coming days," per user). **Until then, continue using the
+  original 2 ESP32-C3 (Taoglas) boards** — single-antenna wireless recording/
+  live-monitoring with the shortened blocks protocol is fully available now
+  and not blocked by this at all; only the SIMULTANEOUS dual-antenna
+  comparison is on hold.
+- **NEXT once the replacement S3 arrives:** flash `csi_tx2` to it (the working
+  spare already has `csi_rx_wifi2`), place both TX on one side of the room /
+  both RX on the other, join `csi_link` + `csi_link2` from the two Wi-Fi
+  adapters, run `wifi_stream_logger.py` with both sources, then
+  `collect_blocks.py --sources taoglas,stock --room ... --placement ...` and
+  confirm both antennas' data lands correctly. Also worth doing once flashed:
+  verify the S3's LLTF CSI vector length matches the C3 pair's 64 subcarriers/
+  128 raw values (check a recorded CSV's csi-list length) before relying on
+  it for a direct comparison — flagged as unverified in §4d, still open.
+- **Stray issue found (not caused by this work):** during the manual RX
+  flashing session, `firmware/csi_tx/sketch_jun24b/sketch_jun24b.ino` (an old,
+  undocumented legacy sketch folder — name doesn't match `csi_tx.ino`, not
+  part of the active pipeline) got overwritten with `csi_rx_wifi.ino`'s
+  content, almost certainly an Arduino IDE save-target mixup while multiple
+  sketch tabs were open. Reverted via `git checkout`. If sketches keep getting
+  cross-contaminated, close unrelated sketch tabs in the IDE before flashing.
+
+## 4f. Wireless architecture REDESIGNED — RX joins home Wi-Fi, no dongle (2026-07-22)
+
+**The dual-adapter plan in §4e above was abandoned.** A full session trying to
+get a laptop to join the RX's own isolated `csi_link` hotspot via a SECOND
+Wi-Fi adapter found the dual-adapter setup itself unstable on this Windows
+machine — ~20-40s disconnect/roam cycles across **three different adapters**
+(built-in Killer, a TP-Link Archer T2U Nano/Realtek 8821CU dongle, an Alfa
+AWUS036ACHM/MediaTek MT7610U card used purely as a plain Wi-Fi client, CSI
+capability irrelevant to that role) — survived a full reboot, channel changes
+(1→11), USB selective-suspend disabling, and stopping Killer Network's
+"Smart AP Selection"/"Dynamic Bandwidth Management" services. RX/TX were
+solid the entire time; the laptop's dual-Wi-Fi handling was the actual
+problem. **Do not go back to the dongle/second-adapter approach.**
+
+**New architecture: RX joins the home Wi-Fi directly (AP+STA concurrent
+mode), so the laptop only ever needs its ONE normal Wi-Fi connection:**
+- RX still hosts its own SoftAP (`csi_link`/`csi_link2`) for TX exactly as
+  before — zero change on the TX side, ever.
+- RX ALSO joins the user's home Wi-Fi (`HOME_SSID`/`HOME_PASS` constants near
+  the top of `csi_rx_wifi.ino` / `csi_rx_wifi2.ino` — currently set to the
+  user's real home network; **must be 2.4 GHz**, ESP32-C3 can't do 5GHz).
+  ESP32 supports AP+STA concurrently on one radio; the softAP's channel
+  follows whatever channel the STA network is on, which is fine since TX
+  finds `csi_link` by scanning all channels for the SSID regardless.
+- Added `ESPmDNS` so the laptop can reach each board at a fixed hostname —
+  `csi-rx.local` (pair 1) / `csi-rx2.local` (pair 2) — instead of hunting for
+  a DHCP-assigned IP (also printed over serial as a fallback). Both hostname
+  and IP resolution confirmed working from Windows with 0% ping loss.
+- **This also fixes the future dual-antenna rig for free**: the laptop
+  reaches BOTH RX boards over its single normal connection now, no second
+  adapter needed for that either.
+
+**Two REAL firmware bugs found and fixed in `csi_rx_wifi.ino` while chasing
+"network is fine but TCP always delivers 0 lines" (both fixed in
+`csi_rx_wifi2.ino` too, for consistency, though pair 2 hardware wasn't
+available to test this round):**
+1. **CPU starvation from Serial.print.** The CSI callback did ~20
+   `Serial.print()` calls per packet at ~97 Hz; each ~750-char line takes
+   ~8ms of blocking UART time at 921600 baud, so Serial output alone was
+   consuming ~75-80% of ALL cpu time. This starved the Arduino `loop()` task
+   badly enough that it never got a turn to call `tcpServer.available()` and
+   actually accept a waiting TCP client — symptom looked exactly like "the
+   network is fine (ping/mDNS work, TX->RX CSI capture works) but the TCP
+   stream is always empty," because the code that would complete the client
+   handshake simply never ran. **Fix:** `SERIAL_CSI_OUTPUT` compile flag
+   (default 0/off) gates all per-line Serial output; the whole line is now
+   built once into a `line_buf` and written in a single `write()` call per
+   sink instead of ~130 tiny `print()` calls.
+2. **Blocking tcpClient.write() under AP+STA radio-sharing.** Even after fix
+   #1, sending every ~97Hz sample over TCP made `write()` block long enough
+   (radio now doing triple duty: AP for TX, STA to home Wi-Fi, TCP relay)
+   that throughput visibly DECAYED over time (88 lines → 11 → 0 across
+   repeated tests) rather than holding steady — each blocked write let TX's
+   incoming packets pile up, and the next callback took even longer. Tried
+   gating on `tcpClient.availableForWrite()` first — that made it WORSE (0
+   lines, always), so `availableForWrite()` appears unreliable on this
+   core/board and should not be trusted for flow control here. **First-pass
+   fix (superseded, see below):** decimating to every 4th packet + a bounded
+   20ms client timeout gave a stable ~25 Hz — a real improvement (finally
+   consistent, not bursty/collapsing) but only ~1/4 the native rate.
+3. **THE REAL FIX — moved the TCP write out of the callback entirely.** The
+   root issue with #2 is architectural: `wifi_csi_cb` runs in the Wi-Fi
+   driver's OWN task context, so ANY blocking call inside it (even a
+   decimated one) risks stalling the Wi-Fi stack itself, not just delaying
+   one line. Solution: a small lock-free single-producer/single-consumer ring
+   buffer (`ring[8]`, each slot a full pre-formatted line). `wifi_csi_cb` is
+   now PRODUCER-ONLY — it just snprintf's the line into the next ring slot
+   and advances `ring_head` (a fast memcpy-equivalent, no network I/O, so it
+   can never block the Wi-Fi stack no matter how slow the TCP link is; if the
+   ring fills because the consumer can't keep up, it drops the oldest unsent
+   line rather than blocking the producer or growing unbounded). `loop()`
+   (plain Arduino task, normal priority, NOT the Wi-Fi driver's context) is
+   the sole CONSUMER: it drains `ring_tail..ring_head` and does the actual
+   (possibly slow) `tcpClient.write()` there, where blocking is harmless
+   since it's fully decoupled from CSI capture. **Result: full native rate
+   restored** — confirmed via the real `live_monitor_gui.py` tool ramping up
+   to and sustaining **~97-99 Hz** for 25+ seconds straight, matching the
+   wired path exactly. No decimation needed anymore; `TCP_DECIMATE` removed
+   entirely. This is now genuinely full-fidelity wireless, not a compromise.
+
+Both fixes (ring buffer + `SERIAL_CSI_OUTPUT` off) are applied identically in
+`csi_rx_wifi.ino` (validated on real hardware) and `csi_rx_wifi2.ino` (same
+edits, compiles clean, not yet hardware-tested — pair 2 board unavailable).
+
+**Operational note:** TX needs a manual power-cycle (unplug/replug) almost
+every time RX reboots/reflashes — its `WiFi.setAutoReconnect(true)` doesn't
+reliably rediscover RX on its own after RX's AP restarts, even after 30+s of
+waiting. A power-cycle forces a fresh full-channel scan that finds it
+immediately. Check TX's own serial diagnostic (`[diag] wifi=%d seq=%lu
+rssi=%d last_reason=%d`, printed every 2s) to confirm connection state
+directly rather than inferring from RX's side.
+
+**Collection-efficiency brainstorm (blocks protocol is slow — alternatives,
+not yet chosen/implemented):**
+1. **Shorten blocks, keep balance.** The whole point of the blocks protocol
+   (validated 2026-07-12) was equal-length classes fixing run/sit starvation
+   — that still holds at a shorter length. Dropping each block from 120s to
+   60-75s roughly halves session time and should barely move the numbers
+   (2s windows, 1s hop — a 60s block is still ~59 windows, plenty for a class).
+   Lowest-risk option, no protocol redesign.
+2. **Continuous multi-activity walkthrough with a foot-pedal/key-press
+   labeler.** Instead of one activity per fixed block, do ONE long recording
+   where the subject changes activity on a cue (a key press logged with a
+   timestamp, or a wearable button) and segments are cut after the fact from
+   those timestamps. Cuts get-ready dead time to near zero and can pack far
+   more class transitions per minute — the tradeoff is messier label
+   boundaries right at each transition (a window straddling a switch is
+   mislabeled either way) and needs a small logging helper.
+2b. **Live model-in-the-loop self-labeling.** Since `live_monitor_gui.py` now
+   exists, a variant could show the LIVE prediction to the recorder as they
+   move, and a keypress only corrects/confirms it (rather than announcing
+   every activity via a prompt) — turns labeling into supervision instead of
+   dictation. More software to build; worth prototyping once wireless is
+   validated.
+3. **Multiple subjects/sessions in parallel across placements is NOT
+   possible with one rig** (single link) — not an option until the 2nd/3rd
+   receiver phase lands; noted only to rule it out.
+4. **Cut the empty-brackets overhead.** Blocks currently bracket every session
+   with two 30s empty segments; since the dedicated `collect_baseline.py`
+   already captures a much better empty reference (90s, held-out), the
+   brackets in `collect_blocks.py` could shrink or drop to one, trimming
+   ~30-60s per session for free without touching the balance property that
+   matters for run/sit.
+5. **Record longer continuous sessions and slice denser (smaller hop).**
+   Hop is currently 1s (50% overlap at 2s windows); a smaller hop (e.g. 0.5s)
+   yields more windows per second of recording without recording any more
+   real time — free data density increase, no protocol change, though windows
+   become more correlated with each other (less independent information per
+   window, so it doesn't truly substitute for more real recording time).
+Recommendation if asked to just pick one: **#1 (shorten blocks to ~60-75s)
+combined with #4 (trim the empty brackets)** — lowest engineering effort,
+directly cuts session time, and doesn't touch the balance property that fixed
+run/sit. #2/#2b are higher-effort but worth prototyping once the wireless
+tool is proven out, since they attack the "get-ready dead time" cost directly
+rather than just shrinking blocks.
 
 ## 9. Agreed next steps (in priority order)
 

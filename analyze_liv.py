@@ -101,7 +101,7 @@ def build(rooms):
     d = dict(MV=np.asarray(MV), SV=np.asarray(SV), MO=np.asarray(MO),
              SL=np.asarray(SL), y=np.asarray(y), direction=np.asarray(direction),
              config=np.asarray(config), room=np.asarray(room),
-             stype=np.asarray(stype), nsc=int(mask.sum()))
+             stype=np.asarray(stype), nsc=int(mask.sum()), mask=mask)
     set_calib(d, 'auto')
     return d
 

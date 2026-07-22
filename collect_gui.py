@@ -7,12 +7,21 @@ the serial port on this machine), generalized so different protocols can drive
 it: each segment is a dict with its own duration / get-ready / direction, so a
 5-minute empty baseline and a directional-activity script reuse one code path.
 
-Workflow (unchanged):
+Workflow, legacy single USB-serial port (unchanged):
   Terminal A:  python stream_logger.py COM17 data/study/_live_stream.tsv
   Terminal B:  python collect_baseline.py ...   OR   python collect_activity.py ...
 
+Workflow, wireless multi-antenna (--sources):
+  Terminal A:  python wifi_stream_logger.py --source taoglas=192.168.4.1:3333 \
+                                            --source stock=192.168.5.1:3333
+  Terminal B:  python collect_blocks.py --sources taoglas,stock ...
+  Each tag gets its own session directory (config=placement/tag) -- one
+  recording pass captures both antennas at once instead of swapping and
+  re-running the whole protocol per antenna.
+
 The GUI only shows prompts + countdowns and records each segment's start/stop PC
-timestamp, then slices _live_stream.tsv into per-segment CSV + JSON at the end.
+timestamp, then slices each source's live-stream file into per-segment CSV +
+JSON at the end.
 
 Segment dict keys:
   label      one of empty/stand/sit/walk/run
@@ -170,8 +179,6 @@ class App:
         self.args = args
         self.segs_spec = segments
         self.session_type = session_type
-        self.port = args.ports.split(',')[0].strip()
-        self.stream = args.stream
         self.idx = 0
         self.phase = 'idle'
         self.remaining = 0
@@ -180,18 +187,47 @@ class App:
         self.segments = []
 
         ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.sdir = os.path.join('data', 'study', args.room,
-                                 f"{args.subject}_{args.placement}_{session_type}_{ts}")
-        os.makedirs(self.sdir, exist_ok=True)
-        self.rx = {self.port: args.rx}
-        with open(os.path.join(self.sdir, 'session.json'), 'w') as f:
-            json.dump({'room': args.room, 'subject': args.subject,
-                       'placement': args.placement, 'tx_xy_in': args.tx,
-                       'rx_xy_in': self.rx, 'node_orientation': args.orientation,
-                       'config': f'{args.placement}/{args.orientation}',
-                       'session_type': session_type,
-                       'port': self.port, 'stream': self.stream, 'started': ts,
-                       'firmware': 'AP-RX + STA-TX, core 2.0.17'}, f, indent=2)
+        multi = bool(getattr(args, 'sources', None))
+        self.multi = multi
+        self.sources = []
+        if multi:
+            # Wireless multi-antenna recording: one source per RX board, tag
+            # is the antenna/config label (e.g. "stock"/"taoglas"). Each gets
+            # its OWN session directory since each is really its own config
+            # (placement/tag), captured simultaneously in one physical pass.
+            for tag in [t.strip() for t in args.sources.split(',') if t.strip()]:
+                sdir = os.path.join('data', 'study', args.room,
+                                    f"{args.subject}_{args.placement}_{session_type}_{ts}__{tag}")
+                os.makedirs(sdir, exist_ok=True)
+                stream = os.path.join('data', 'study', f'_live_stream_{tag}.tsv')
+                with open(os.path.join(sdir, 'session.json'), 'w') as f:
+                    json.dump({'room': args.room, 'subject': args.subject,
+                               'placement': args.placement, 'tx_xy_in': args.tx,
+                               'rx_xy_in': {tag: args.rx}, 'node_orientation': tag,
+                               'config': f'{args.placement}/{tag}',
+                               'session_type': session_type,
+                               'port': tag, 'stream': stream, 'started': ts,
+                               'firmware': 'AP-RX-wireless + STA-TX, core 2.0.17'},
+                              f, indent=2)
+                self.sources.append({'tag': tag, 'stream': stream, 'sdir': sdir})
+        else:
+            # Legacy single-port path -- UNCHANGED behavior/layout.
+            port = args.ports.split(',')[0].strip()
+            self.port = port
+            self.stream = args.stream
+            self.sdir = os.path.join('data', 'study', args.room,
+                                     f"{args.subject}_{args.placement}_{session_type}_{ts}")
+            os.makedirs(self.sdir, exist_ok=True)
+            self.rx = {port: args.rx}
+            with open(os.path.join(self.sdir, 'session.json'), 'w') as f:
+                json.dump({'room': args.room, 'subject': args.subject,
+                           'placement': args.placement, 'tx_xy_in': args.tx,
+                           'rx_xy_in': self.rx, 'node_orientation': args.orientation,
+                           'config': f'{args.placement}/{args.orientation}',
+                           'session_type': session_type,
+                           'port': port, 'stream': self.stream, 'started': ts,
+                           'firmware': 'AP-RX + STA-TX, core 2.0.17'}, f, indent=2)
+            self.sources = [{'tag': port, 'stream': self.stream, 'sdir': self.sdir}]
 
         total = sum(s['dur'] for s in segments)
         root.title(f'CSI Collection — {session_type}')
@@ -235,13 +271,20 @@ class App:
         root.bind('<Configure>', self._on_resize)
         self._health_loop()                  # start monitoring the link now
 
+    LEVEL_RANK = {'ok': 0, 'idle': 1, 'warn': 2, 'alarm': 3}
+
     def _health_loop(self):
-        h = assess_link(self.stream)
-        self.health_var.set(h['msg'])
-        self.health_lbl.configure(bg=HEALTH_BG[h['level']])
-        if h['level'] == 'alarm' and self._last_level != 'alarm':
+        results = [(src['tag'], assess_link(src['stream'])) for src in self.sources]
+        if len(results) == 1:
+            msg = results[0][1]['msg']              # unchanged single-source wording
+        else:
+            msg = '  |  '.join(f"{tag}: {h['msg']}" for tag, h in results)
+        level = max((h['level'] for _, h in results), key=lambda l: self.LEVEL_RANK[l])
+        self.health_var.set(msg)
+        self.health_lbl.configure(bg=HEALTH_BG[level])
+        if level == 'alarm' and self._last_level != 'alarm':
             self.root.bell()                 # audible cue only on entering alarm
-        self._last_level = h['level']
+        self._last_level = level
         self.health_after = self.root.after(HEALTH_POLL_MS, self._health_loop)
 
     def _on_resize(self, event):
@@ -258,19 +301,24 @@ class App:
         self.instr_lbl.configure(wraplength=max(200, w - 40))
         self.health_lbl.configure(wraplength=max(200, w - 20))
 
-    def _stream_size(self):
+    def _stream_size(self, path):
         try:
-            return os.path.getsize(self.stream)
+            return os.path.getsize(path)
         except OSError:
             return -1
 
     def start(self):
-        s0 = self._stream_size()
+        s0 = [self._stream_size(src['stream']) for src in self.sources]
         time.sleep(1.0)
-        s1 = self._stream_size()
-        if s1 < 0 or s1 == s0:
-            self.instr_var.set('No stream! Start:\npython stream_logger.py '
-                               + f'{self.port} {self.stream}')
+        s1 = [self._stream_size(src['stream']) for src in self.sources]
+        stalled = [src['tag'] for src, a, b in zip(self.sources, s0, s1) if b < 0 or b == a]
+        if stalled:
+            if self.multi:
+                self.instr_var.set('No stream for: ' + ', '.join(stalled) +
+                                   '\nStart wifi_stream_logger.py first')
+            else:
+                self.instr_var.set('No stream! Start:\npython stream_logger.py '
+                                   + f'{self.sources[0]["tag"]} {self.sources[0]["stream"]}')
             return
         self.start_btn.config(state='disabled')
         self.run_segment()
@@ -321,8 +369,8 @@ class App:
         rec.update({'idx': self.idx + 1, 'start': self.seg_start, 'end': end,
                     'ts': self.seg_ts})
         self.segments.append(rec)
-        cnt = sum(1 for pc, _ in _read_stream(self.stream)
-                  if self.seg_start <= pc < end)
+        cnt = min(sum(1 for pc, _ in _read_stream(src['stream'])
+                      if self.seg_start <= pc < end) for src in self.sources)
         self.tally[seg['label']] = self.tally.get(seg['label'], 0) + 1
         self.root.bell()
         if cnt < int(seg['dur']) * 50:
@@ -331,47 +379,52 @@ class App:
         self.root.after(700, self.run_segment)
 
     def _finalize(self):
-        rows = _read_stream(self.stream)
         self.bad_segs = []
-        for seg in self.segments:
-            label = seg['label']
-            prefix = os.path.join(self.sdir, f"seg{seg['idx']:02d}_{label}_{seg['ts']}")
-            cnt = drops = 0; last = None
-            with open(f"{prefix}__{self.port}.csv", 'w', newline='') as f:
-                w = csv.writer(f); w.writerow(FIELDS)
-                for pc, raw in rows:
-                    if seg['start'] <= pc < seg['end']:
-                        r = parse_line(raw)
-                        if r is None:
-                            continue
-                        w.writerow([f"{pc:.6f}", r['idx'], r['rssi'], r['rate'],
-                                    r['sig_mode'], r['mcs'], r['bw'], r['noise_floor'],
-                                    r['channel'], r['local_us'], r['n'],
-                                    ' '.join(map(str, r['csi']))])
-                        cnt += 1
-                        if last is not None and r['idx'] > last + 1:
-                            drops += r['idx'] - last - 1
-                        last = r['idx']
-            loss = 100.0 * drops / (cnt + drops) if (cnt + drops) else 100.0
-            if cnt < int(seg['dur']) * RATE_BAD or loss > LOSS_BAD:
-                self.bad_segs.append(
-                    f"seg{seg['idx']:02d} {label}: {cnt} pkts, {loss:.0f}% loss")
-            pos = seg.get('pos', '')
-            meta = {'segment': seg['idx'], 'label': label,
-                    'count': seg.get('count'), 'people': seg.get('people', []),
-                    'position': pos if label in ('stand', 'sit') else '',
-                    'xy_in': _grid_xy(pos) if label in ('stand', 'sit') else None,
-                    'path': seg.get('pos', '') if label in ('walk', 'run') else '',
-                    'direction': seg.get('direction', ''),
-                    'duration_s': int(seg['dur']), 'subject': self.args.subject,
-                    'room': self.args.room, 'placement': self.args.placement,
-                    'node_orientation': self.args.orientation,
-                    'config': f'{self.args.placement}/{self.args.orientation}',
-                    'session_type': self.session_type,
-                    'tx_xy_in': self.args.tx, 'rx_xy_in': self.rx, 'ts': seg['ts'],
-                    'per_port': {self.port: {'packets': cnt, 'drops': drops}}}
-            with open(prefix + '.json', 'w') as f:
-                json.dump(meta, f, indent=2)
+        for src in self.sources:
+            tag, sdir = src['tag'], src['sdir']
+            rows = _read_stream(src['stream'])
+            node_orientation = tag if self.multi else self.args.orientation
+            config = f'{self.args.placement}/{node_orientation}'
+            rx_xy = {tag: self.args.rx} if self.multi else self.rx
+            for seg in self.segments:
+                label = seg['label']
+                prefix = os.path.join(sdir, f"seg{seg['idx']:02d}_{label}_{seg['ts']}")
+                cnt = drops = 0; last = None
+                with open(f"{prefix}__{tag}.csv", 'w', newline='') as f:
+                    w = csv.writer(f); w.writerow(FIELDS)
+                    for pc, raw in rows:
+                        if seg['start'] <= pc < seg['end']:
+                            r = parse_line(raw)
+                            if r is None:
+                                continue
+                            w.writerow([f"{pc:.6f}", r['idx'], r['rssi'], r['rate'],
+                                        r['sig_mode'], r['mcs'], r['bw'], r['noise_floor'],
+                                        r['channel'], r['local_us'], r['n'],
+                                        ' '.join(map(str, r['csi']))])
+                            cnt += 1
+                            if last is not None and r['idx'] > last + 1:
+                                drops += r['idx'] - last - 1
+                            last = r['idx']
+                loss = 100.0 * drops / (cnt + drops) if (cnt + drops) else 100.0
+                if cnt < int(seg['dur']) * RATE_BAD or loss > LOSS_BAD:
+                    self.bad_segs.append(
+                        f"[{tag}] seg{seg['idx']:02d} {label}: {cnt} pkts, {loss:.0f}% loss")
+                pos = seg.get('pos', '')
+                meta = {'segment': seg['idx'], 'label': label,
+                        'count': seg.get('count'), 'people': seg.get('people', []),
+                        'position': pos if label in ('stand', 'sit') else '',
+                        'xy_in': _grid_xy(pos) if label in ('stand', 'sit') else None,
+                        'path': seg.get('pos', '') if label in ('walk', 'run') else '',
+                        'direction': seg.get('direction', ''),
+                        'duration_s': int(seg['dur']), 'subject': self.args.subject,
+                        'room': self.args.room, 'placement': self.args.placement,
+                        'node_orientation': node_orientation,
+                        'config': config,
+                        'session_type': self.session_type,
+                        'tx_xy_in': self.args.tx, 'rx_xy_in': rx_xy, 'ts': seg['ts'],
+                        'per_port': {tag: {'packets': cnt, 'drops': drops}}}
+                with open(prefix + '.json', 'w') as f:
+                    json.dump(meta, f, indent=2)
 
     def done(self):
         self.instr_var.set('Saving...'); self.timer_var.set(''); self.root.update()
@@ -380,13 +433,14 @@ class App:
         col = '#b71c1c' if bad else '#1b5e20'
         self.root.configure(bg=col); self.instr_lbl.configure(bg=col)
         self.progress_var.set('Session complete')
+        dirs = ', '.join(src['sdir'] for src in self.sources)
         if bad:
             self.instr_var.set('DONE — BAD SEGMENTS, RE-RECORD:\n' + '\n'.join(bad))
-            print('BAD SEGMENTS in', self.sdir, '->', bad)
+            print('BAD SEGMENTS in', dirs, '->', bad)
         else:
             self.instr_var.set('DONE ✔')
             self.phase_var.set('  '.join(f'{k}:{v}' for k, v in self.tally.items()))
-        print('Saved session to', self.sdir)
+        print('Saved session to', dirs)
 
     def quit(self):
         if self.health_after:
@@ -400,12 +454,20 @@ class App:
 
 def base_argparser(description):
     ap = argparse.ArgumentParser(description=description)
-    ap.add_argument('--ports', default='COM17')
-    ap.add_argument('--stream', default=DEFAULT_STREAM)
+    ap.add_argument('--ports', default='COM17',
+                    help='legacy single USB-serial port (ignored if --sources is given)')
+    ap.add_argument('--stream', default=DEFAULT_STREAM,
+                    help='legacy single stream file (ignored if --sources is given)')
+    ap.add_argument('--sources', default='',
+                    help="wireless multi-antenna mode: comma-separated tags matching "
+                         "wifi_stream_logger.py's --source tags (e.g. 'taoglas,stock'). "
+                         "Each tag gets its OWN session dir (config=placement/tag) and "
+                         "reads data/study/_live_stream_<tag>.tsv. Overrides --ports/--stream.")
     ap.add_argument('--room', default='env2', help='new-environment name (folder under data/study/)')
     ap.add_argument('--subject', default='s1')
     ap.add_argument('--placement', default='p1')
-    ap.add_argument('--orientation', default='flat')
+    ap.add_argument('--orientation', default='flat',
+                    help='ignored in --sources mode (each tag becomes its own node_orientation)')
     ap.add_argument('--tx', default='')
     ap.add_argument('--rx', default='')
     ap.add_argument('--dry-run', action='store_true', help='print the segment plan and exit')
@@ -415,7 +477,8 @@ def base_argparser(description):
 def run(args, segments, session_type):
     total = sum(s['dur'] for s in segments)
     overhead = sum(int(s.get('ready', DEFAULT_READY)) for s in segments)
-    print(f"[{session_type}] room={args.room} config={args.placement}/{args.orientation}")
+    tag_desc = args.sources if getattr(args, 'sources', '') else args.orientation
+    print(f"[{session_type}] room={args.room} config={args.placement}/{tag_desc}")
     print(f"{len(segments)} segments | {total}s recording + ~{overhead}s get-ready "
           f"= ~{(total + overhead) / 60:.1f} min")
     for i, s in enumerate(segments, 1):
