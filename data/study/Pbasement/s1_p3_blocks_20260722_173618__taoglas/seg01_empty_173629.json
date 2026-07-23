@@ -1,0 +1,29 @@
+{
+  "segment": 1,
+  "label": "empty",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 30,
+  "n_pauses": 0,
+  "subject": "s1",
+  "room": "Pbasement",
+  "placement": "p3",
+  "node_orientation": "taoglas",
+  "config": "p3/taoglas",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "taoglas": ""
+  },
+  "ts": "173629",
+  "per_port": {
+    "taoglas": {
+      "packets": 2992,
+      "drops": 31
+    }
+  }
+}

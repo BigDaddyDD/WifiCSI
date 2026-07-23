@@ -65,9 +65,19 @@ def _resample(amp, rssi, tus, fs):
     if len(tus) < 8 or np.any(tus < 0):
         return amp, rssi
     d = np.diff(tus)
-    if np.any(d < 0):                       # unwrap 32-bit micros() rollover
+    # A genuine micros() wraparound is a ~-2**32 jump. Small negative diffs (up
+    # to tens of ms) also show up on the WIRELESS path -- AP+STA concurrent mode
+    # duty-cycles the radio between hosting the TX's AP and the home-Wi-Fi STA
+    # link, which occasionally makes the hardware rx_ctrl.timestamp counter tick
+    # slightly out of order. Treating those as a full rollover (the old `d < 0`
+    # check did) added ~2**32us per occurrence and blew the time axis up by
+    # orders of magnitude. Only unwrap on jumps consistent with a real
+    # rollover; small backward blips are instead dropped below by the `inc`
+    # (strictly-increasing) filter, same as any other out-of-order sample.
+    rollover = d < -(2.0 ** 31)
+    if np.any(rollover):
         tus = tus.copy()
-        tus[1:] += np.cumsum(np.where(d < 0, 2.0 ** 32, 0.0))
+        tus[1:] += np.cumsum(np.where(rollover, 2.0 ** 32, 0.0))
     t = (tus - tus[0]) / 1e6
     inc = np.concatenate([[True], np.diff(t) > 0])
     t, amp, rssi = t[inc], amp[inc], rssi[inc]

@@ -1,0 +1,16 @@
+{
+  "room": "Pbasement",
+  "subject": "s1",
+  "placement": "p3",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "taoglas": ""
+  },
+  "node_orientation": "taoglas",
+  "config": "p3/taoglas",
+  "session_type": "blocks",
+  "port": "taoglas",
+  "stream": "data\\study\\_live_stream_taoglas.tsv",
+  "started": "20260722_173618",
+  "firmware": "AP-RX-wireless + STA-TX, core 2.0.17"
+}

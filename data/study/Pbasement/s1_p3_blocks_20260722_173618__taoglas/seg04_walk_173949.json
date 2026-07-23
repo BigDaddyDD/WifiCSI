@@ -1,0 +1,29 @@
+{
+  "segment": 4,
+  "label": "walk",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "walk continuously, vary your path",
+  "direction": "",
+  "duration_s": 70,
+  "n_pauses": 0,
+  "subject": "s1",
+  "room": "Pbasement",
+  "placement": "p3",
+  "node_orientation": "taoglas",
+  "config": "p3/taoglas",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "taoglas": ""
+  },
+  "ts": "173949",
+  "per_port": {
+    "taoglas": {
+      "packets": 6998,
+      "drops": 115
+    }
+  }
+}

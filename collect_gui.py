@@ -185,6 +185,10 @@ class App:
         self.after_id = None
         self.tally = {}
         self.segments = []
+        self.paused = False
+        self.intervals = []          # [[start, end], ...] spans for the CURRENT segment
+                                      # (end=None = still open); pausing closes the open span
+                                      # and excludes anything recorded while paused from the CSV
 
         ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         multi = bool(getattr(args, 'sources', None))
@@ -265,6 +269,9 @@ class App:
         self.start_btn = tk.Button(btns, text='START', font=self.f_phase, command=self.start,
                                    bg='#2e7d32', fg='white', width=10)
         self.start_btn.pack(side='left', padx=8)
+        self.pause_btn = tk.Button(btns, text='Pause', font=self.f_phase, command=self.toggle_pause,
+                                   bg='#f9a825', fg='white', width=8, state='disabled')
+        self.pause_btn.pack(side='left', padx=8)
         tk.Button(btns, text='Quit', font=self.f_phase, command=self.quit,
                   bg='#555', fg='white', width=6).pack(side='left', padx=8)
         root.protocol('WM_DELETE_WINDOW', self.quit)
@@ -340,6 +347,8 @@ class App:
         self.after_id = self.root.after(1000, self._tick)
 
     def _tick(self):
+        if self.paused:            # safety net -- after_id is cancelled while paused anyway
+            return
         self.remaining -= 1
         if self.remaining > 0:
             self.timer_var.set(str(self.remaining))
@@ -353,7 +362,9 @@ class App:
     def _begin_record(self):
         seg = self.segs_spec[self.idx]
         self.seg_ts = datetime.datetime.now().strftime('%H%M%S')
-        self.seg_start = time.time()
+        self.intervals = [[time.time(), None]]      # first (and maybe only) open span
+        self.paused = False
+        self.pause_btn.config(text='Pause', bg='#f9a825', state='normal')
         self.root.bell()
         col = seg.get('color') or COLORS.get(seg['label'], '#c0392b')
         self.root.configure(bg=col); self.instr_lbl.configure(bg=col)
@@ -362,19 +373,45 @@ class App:
         self.remaining = int(seg['dur'])
         self._schedule()
 
+    def toggle_pause(self):
+        """Freeze the countdown and stop counting this span toward the segment
+        so someone walking up to the nodes (or any other disturbance) can be
+        excluded from the recorded CSV without losing/restarting the segment.
+        Resuming opens a new span and picks the countdown back up where it left
+        off, so the segment still ends up with its full nominal `dur` seconds
+        of clean (non-paused) recording."""
+        if self.phase != 'recording':
+            return
+        if not self.paused:
+            self.paused = True
+            if self.after_id:
+                self.root.after_cancel(self.after_id)
+                self.after_id = None
+            self.intervals[-1][1] = time.time()     # close the currently-open span
+            self.phase_var.set('⏸ PAUSED (excluded from recording)')
+            self.phase_lbl.config(fg='#ffeb3b')
+            self.pause_btn.config(text='Resume', bg='#2e7d32')
+        else:
+            self.paused = False
+            self.intervals.append([time.time(), None])   # open a fresh span
+            self.phase_var.set('● RECORDING'); self.phase_lbl.config(fg='white')
+            self.pause_btn.config(text='Pause', bg='#f9a825')
+            self._schedule()
+
     def _finish_record(self):
         seg = self.segs_spec[self.idx]
-        end = time.time()
+        self.intervals[-1][1] = time.time()         # close the final open span
+        spans = [tuple(iv) for iv in self.intervals]
         rec = dict(seg)
-        rec.update({'idx': self.idx + 1, 'start': self.seg_start, 'end': end,
-                    'ts': self.seg_ts})
+        rec.update({'idx': self.idx + 1, 'intervals': spans, 'ts': self.seg_ts})
         self.segments.append(rec)
         cnt = min(sum(1 for pc, _ in _read_stream(src['stream'])
-                      if self.seg_start <= pc < end) for src in self.sources)
+                      if any(a <= pc < b for a, b in spans)) for src in self.sources)
         self.tally[seg['label']] = self.tally.get(seg['label'], 0) + 1
         self.root.bell()
         if cnt < int(seg['dur']) * 50:
             self.phase_var.set(f'WARNING low ({cnt}) - stream running?')
+        self.pause_btn.config(state='disabled')
         self.idx += 1
         self.root.after(700, self.run_segment)
 
@@ -389,11 +426,13 @@ class App:
             for seg in self.segments:
                 label = seg['label']
                 prefix = os.path.join(sdir, f"seg{seg['idx']:02d}_{label}_{seg['ts']}")
-                cnt = drops = 0; last = None
+                cnt = drops = 0; last = None; last_iv = None
                 with open(f"{prefix}__{tag}.csv", 'w', newline='') as f:
                     w = csv.writer(f); w.writerow(FIELDS)
                     for pc, raw in rows:
-                        if seg['start'] <= pc < seg['end']:
+                        iv = next((i for i, (a, b) in enumerate(seg['intervals'])
+                                   if a <= pc < b), None)
+                        if iv is not None:
                             r = parse_line(raw)
                             if r is None:
                                 continue
@@ -402,9 +441,12 @@ class App:
                                         r['channel'], r['local_us'], r['n'],
                                         ' '.join(map(str, r['csi']))])
                             cnt += 1
-                            if last is not None and r['idx'] > last + 1:
+                            # Only count a gap as a real drop within the SAME span --
+                            # crossing into a new span means a pause happened, and the
+                            # excluded time in between is deliberate, not lost packets.
+                            if last is not None and iv == last_iv and r['idx'] > last + 1:
                                 drops += r['idx'] - last - 1
-                            last = r['idx']
+                            last = r['idx']; last_iv = iv
                 loss = 100.0 * drops / (cnt + drops) if (cnt + drops) else 100.0
                 if cnt < int(seg['dur']) * RATE_BAD or loss > LOSS_BAD:
                     self.bad_segs.append(
@@ -416,7 +458,8 @@ class App:
                         'xy_in': _grid_xy(pos) if label in ('stand', 'sit') else None,
                         'path': seg.get('pos', '') if label in ('walk', 'run') else '',
                         'direction': seg.get('direction', ''),
-                        'duration_s': int(seg['dur']), 'subject': self.args.subject,
+                        'duration_s': int(seg['dur']), 'n_pauses': len(seg['intervals']) - 1,
+                        'subject': self.args.subject,
                         'room': self.args.room, 'placement': self.args.placement,
                         'node_orientation': node_orientation,
                         'config': config,

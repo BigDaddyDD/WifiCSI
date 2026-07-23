@@ -1,0 +1,16 @@
+{
+  "room": "bedroom",
+  "subject": "s1",
+  "placement": "p3",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "wifi": ""
+  },
+  "node_orientation": "wifi",
+  "config": "p3/wifi",
+  "session_type": "blocks",
+  "port": "wifi",
+  "stream": "data\\study\\_live_stream_wifi.tsv",
+  "started": "20260722_014428",
+  "firmware": "AP-RX-wireless + STA-TX, core 2.0.17"
+}

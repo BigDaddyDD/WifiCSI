@@ -5,6 +5,7 @@ __pycache__/
 
 # transient live-capture buffer — overwritten every recording session, ~30 MB
 data/study/_live_stream.tsv
+data/study/_live_stream_*.tsv
 
 # persisted live-inference model — ~50 MB, regenerate with train_live_model.py
 model_store/

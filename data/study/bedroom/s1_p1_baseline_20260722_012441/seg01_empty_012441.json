@@ -1,0 +1,28 @@
+{
+  "segment": 1,
+  "label": "empty",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 280,
+  "subject": "s1",
+  "room": "bedroom",
+  "placement": "p1",
+  "node_orientation": "wifi",
+  "config": "p1/wifi",
+  "session_type": "baseline",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "wifi": ""
+  },
+  "ts": "012441",
+  "per_port": {
+    "wifi": {
+      "packets": 26865,
+      "drops": 1233
+    }
+  }
+}

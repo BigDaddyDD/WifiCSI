@@ -1,0 +1,29 @@
+{
+  "segment": 1,
+  "label": "empty",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 30,
+  "n_pauses": 0,
+  "subject": "s1",
+  "room": "Pbedroom",
+  "placement": "p2",
+  "node_orientation": "rxtaoglas_txstock",
+  "config": "p2/rxtaoglas_txstock",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "rxtaoglas_txstock": ""
+  },
+  "ts": "131817",
+  "per_port": {
+    "rxtaoglas_txstock": {
+      "packets": 2830,
+      "drops": 0
+    }
+  }
+}

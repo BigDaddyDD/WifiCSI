@@ -15,6 +15,17 @@ only PER-INSTALL calibration does. So the live monitor still captures a fresh
 what's persisted here is only the trained classifier + the active-subcarrier
 mask, which are hardware/pipeline properties, not location properties.
 
+2026-07-22: switched from the old WIRED dataset (home_L/basement, different
+firmware+antenna) to the WIRELESS both-Taoglas dataset (bedroom/Pbedroom/
+PBath), since cross-antenna transfer does NOT work (established finding --
+0.31-0.41 balanced) -- the live model must be trained on data recorded with
+the SAME antenna it'll actually be deployed with. The bedroom room used tag
+'wifi' before the antenna-tagging convention existed; Pbedroom/PBath use
+'taoglas'/'rxtaoglas_txstock' -- both 'wifi' and 'taoglas' are the SAME
+physical both-Taoglas config, so both are pooled here. The mixed-antenna
+('rxtaoglas_txstock') sessions are excluded on purpose -- don't mix antenna
+conditions into one model.
+
 Writes: model_store/live_model.joblib
   {clf, nsc, classes, win, hop}
 
@@ -37,11 +48,12 @@ rng = np.random.default_rng(0)
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    d = al.build(['home_L', 'basement'])
-    al.set_calib(d, 'allspread')
+    d = al.build(['bedroom', 'Pbedroom', 'PBath', 'Pbasement'])
+    al.set_calib(d, 'auto')
     X = al.calibrated(d, slope=False)
     y, cfg = d['y'], d['config']
-    score = (~d['calib']) & ~np.array(['p9' in c for c in cfg])
+    is_taoglas = np.array([c.endswith('/taoglas') or c.endswith('/wifi') for c in cfg])
+    score = (~d['calib']) & is_taoglas
     cfgs = sorted(set(cfg[score]))
 
     keep = np.zeros(len(y), bool)

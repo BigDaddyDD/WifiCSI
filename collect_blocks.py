@@ -26,25 +26,41 @@ fallback calibration source, so one is enough.
 Usage (Terminal A already running stream_logger.py):
   python collect_blocks.py --room basement --placement p5 --orientation vert
   # --secs 120  longer blocks (more data, old default)   |   --dry-run  print the plan
+  # --activities stand,sit   confined space (e.g. a bedroom) where walk/run
+  #                          aren't possible -- default is stand,sit,walk,run
 """
 from collect_gui import base_argparser, run
 
+ACTIVITY_SPECS = {
+    'stand': {'label': 'stand', 'pos': 'stand still (pick a spot)', 'ready': 6},
+    'sit':   {'label': 'sit',   'pos': 'sit still',                 'ready': 8},
+    'walk':  {'label': 'walk',  'pos': 'walk continuously, vary your path', 'ready': 6},
+    'run':   {'label': 'run',   'pos': 'jog continuously (in place / small loops)', 'ready': 8},
+}
 
-def build_segments(secs):
-    return [
-        {'label': 'empty', 'dur': 30, 'ready': 8},
-        {'label': 'stand', 'pos': 'stand still (pick a spot)', 'dur': secs, 'ready': 6},
-        {'label': 'sit',   'pos': 'sit still',                 'dur': secs, 'ready': 8},
-        {'label': 'walk',  'pos': 'walk continuously, vary your path', 'dur': secs, 'ready': 6},
-        {'label': 'run',   'pos': 'jog continuously (in place / small loops)', 'dur': secs, 'ready': 8},
-    ]
+
+def build_segments(secs, activities=('stand', 'sit', 'walk', 'run')):
+    segs = [{'label': 'empty', 'dur': 30, 'ready': 8}]
+    for name in activities:
+        spec = dict(ACTIVITY_SPECS[name])
+        spec['dur'] = secs
+        segs.append(spec)
+    return segs
 
 
 def main():
     ap = base_argparser('Record long balanced single-activity blocks (confined-room protocol).')
     ap.add_argument('--secs', type=int, default=70, help='seconds per activity block')
+    ap.add_argument('--activities', default='stand,sit,walk,run',
+                    help="comma-separated subset/order of activity blocks after the "
+                         "empty bracket, e.g. 'stand,sit' when the space is too "
+                         "confined for walk/run (default: stand,sit,walk,run)")
     args = ap.parse_args()
-    run(args, build_segments(args.secs), session_type='blocks')
+    activities = [a.strip() for a in args.activities.split(',') if a.strip()]
+    unknown = [a for a in activities if a not in ACTIVITY_SPECS]
+    if unknown:
+        raise SystemExit(f"unknown --activities entries {unknown}, choose from {list(ACTIVITY_SPECS)}")
+    run(args, build_segments(args.secs, activities), session_type='blocks')
 
 
 if __name__ == '__main__':

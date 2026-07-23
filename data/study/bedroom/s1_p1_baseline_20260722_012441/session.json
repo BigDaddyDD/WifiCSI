@@ -1,0 +1,16 @@
+{
+  "room": "bedroom",
+  "subject": "s1",
+  "placement": "p1",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "wifi": ""
+  },
+  "node_orientation": "wifi",
+  "config": "p1/wifi",
+  "session_type": "baseline",
+  "port": "wifi",
+  "stream": "data\\study\\_live_stream_wifi.tsv",
+  "started": "20260722_012441",
+  "firmware": "AP-RX-wireless + STA-TX, core 2.0.17 (wireless smoke-test capture, part 2)"
+}

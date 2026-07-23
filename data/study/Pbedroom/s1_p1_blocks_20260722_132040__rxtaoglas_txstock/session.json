@@ -1,0 +1,16 @@
+{
+  "room": "Pbedroom",
+  "subject": "s1",
+  "placement": "p1",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "rxtaoglas_txstock": ""
+  },
+  "node_orientation": "rxtaoglas_txstock",
+  "config": "p1/rxtaoglas_txstock",
+  "session_type": "blocks",
+  "port": "rxtaoglas_txstock",
+  "stream": "data\\study\\_live_stream_rxtaoglas_txstock.tsv",
+  "started": "20260722_132040",
+  "firmware": "AP-RX-wireless + STA-TX, core 2.0.17"
+}

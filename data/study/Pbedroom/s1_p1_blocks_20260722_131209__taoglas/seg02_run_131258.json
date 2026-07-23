@@ -1,0 +1,29 @@
+{
+  "segment": 2,
+  "label": "run",
+  "count": null,
+  "people": [],
+  "position": "",
+  "xy_in": null,
+  "path": "jog continuously (in place / small loops)",
+  "direction": "",
+  "duration_s": 70,
+  "n_pauses": 0,
+  "subject": "s1",
+  "room": "Pbedroom",
+  "placement": "p1",
+  "node_orientation": "taoglas",
+  "config": "p1/taoglas",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "taoglas": ""
+  },
+  "ts": "131258",
+  "per_port": {
+    "taoglas": {
+      "packets": 6663,
+      "drops": 17
+    }
+  }
+}

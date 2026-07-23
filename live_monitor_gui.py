@@ -56,6 +56,8 @@ HEALTH_BG = {'ok': '#2e7d32', 'warn': '#f9a825', 'alarm': '#b71c1c',
 # these match the same expectations as the wired path.
 RATE_OK, RATE_BAD = 85, 60
 LIVE_HOP_MS = 1000            # re-classify once per second
+SMOOTH_K = 5                   # rolling-majority window over predictions --
+                               # same k as phase_a_hier.py's validated smoothing
 
 
 # ---------------------------------------------------------------------------
@@ -63,10 +65,15 @@ LIVE_HOP_MS = 1000            # re-classify once per second
 # thread only ever reads snapshots under the lock -- no socket I/O in Tk).
 # ---------------------------------------------------------------------------
 class CSIStream:
-    def __init__(self, host, port):
+    def __init__(self, host, port, buf_secs=90):
         self.host, self.port = host, port
         self.lock = threading.Lock()
-        self.buf = collections.deque(maxlen=1200)     # ~12s at ~97 Hz
+        # Sized to hold a full baseline capture (buf_secs, ~110/s margin above
+        # the ~97-100Hz nominal rate) -- NOT just the ~2s the live classifier
+        # needs. A too-small maxlen here is what caused baseline capture to
+        # silently lose data once the deque started evicting (see
+        # snapshot_since's docstring for the full story).
+        self.buf = collections.deque(maxlen=int(buf_secs * 110))
         self.recent_pc = collections.deque(maxlen=400)  # (pc_time,) for rate/health
         self.connected = False
         self.last_rssi = None
@@ -137,7 +144,7 @@ class CSIStream:
         us = self._unwrap(float(r['local_us']))
         now = time.time()
         with self.lock:
-            self.buf.append((us, amp))
+            self.buf.append((now, us, amp))
             self.recent_pc.append(now)
             self.last_rssi = r['rssi']
 
@@ -165,10 +172,16 @@ class CSIStream:
         with self.lock:
             return list(self.buf)
 
-    def snapshot_since(self, mark_len):
-        """Everything appended after a previous snapshot of length `mark_len`."""
+    def snapshot_since(self, pc_time):
+        """Everything appended at or after wall-clock time `pc_time`. Filtering
+        by timestamp (not a position index) is required because `self.buf` is
+        a maxlen-capped deque -- once it fills, every new append evicts the
+        oldest entry so its length stays constant, and a position-based mark
+        silently stops meaning anything (this is what caused baseline capture
+        to see "0 samples" after 60s: the deque was already full from normal
+        connected idling before Capture baseline was even clicked)."""
         with self.lock:
-            return list(self.buf)[mark_len:], len(self.buf)
+            return [s for s in self.buf if s[0] >= pc_time]
 
 
 # ---------------------------------------------------------------------------
@@ -189,11 +202,12 @@ def raw_feature_vec(MV, SV, MO, base):
 
 
 def compute_baseline(samples, mask, win, hop):
-    """samples: [(us, amp[64]), ...] from the empty-room capture. Returns
-    (base, mu, sd) -- the SAME two-stage calibration as training (subtract
-    empty baseline, then z-score against the calibration set's own spread)."""
-    tus = np.array([s[0] for s in samples], float)
-    amp = np.array([s[1] for s in samples])
+    """samples: [(pc_time, us, amp[64]), ...] from the empty-room capture.
+    Returns (base, mu, sd) -- the SAME two-stage calibration as training
+    (subtract empty baseline, then z-score against the calibration set's own
+    spread)."""
+    tus = np.array([s[1] for s in samples], float)
+    amp = np.array([s[2] for s in samples])
     rssi = np.zeros(len(tus))
     ampU, _ = pa._resample(amp, rssi, tus, pa.RESAMPLE_FS)
     if len(ampU) < win:
@@ -207,13 +221,32 @@ def compute_baseline(samples, mask, win, hop):
 
 
 def resample_last_window(buf, win, fs=100.0):
-    """buf: [(us, amp[64]), ...] ascending by time. Returns a [win, 64] array
-    ending at the most recent sample, or None if there isn't enough history."""
+    """buf: [(pc_time, us, amp[64]), ...] ascending by time. Returns a
+    [win, 64] array ending at the most recent sample, or None if there isn't
+    enough history."""
     if len(buf) < win // 2:
         return None
-    tus = np.array([b[0] for b in buf], float)
-    amp = np.array([b[1] for b in buf])
+    # Only the tail is ever relevant to a `win`-sample window -- slicing here
+    # (instead of re-processing the FULL multi-minute buffer every single
+    # classification cycle) avoids wastefully growing CPU cost over a live
+    # session and shrinks how much accumulated timestamp jitter can ever
+    # reach the interpolation below.
+    buf = buf[-(win * 4):]
+    tus = np.array([b[1] for b in buf], float)
+    amp = np.array([b[2] for b in buf])
     t = (tus - tus[-1]) / 1e6                 # seconds relative to "now" = 0
+    # Drop any non-strictly-increasing samples before interpolating. The
+    # wireless AP+STA firmware occasionally produces small backward timestamp
+    # jitter (tens of ms, too small to be a real rollover -- see CLAUDE.md 4f
+    # / the _resample fix in phase_a_analysis.py for the full story). np.interp
+    # silently produces garbage if its x-coordinates aren't strictly
+    # ascending, which corrupted whichever live window straddled one of these
+    # jitters -- this is what caused the recurring, low-confidence
+    # misclassification flares even in a genuinely empty room.
+    inc = np.concatenate([[True], np.diff(t) > 0])
+    t, amp = t[inc], amp[inc]
+    if len(t) < win // 2:
+        return None
     span = win / fs
     if t[0] > -span * 0.9:                    # not enough history yet
         return None
@@ -239,7 +272,8 @@ class App:
         self.stream = None
         self.baseline = None            # (base, mu, sd) once captured
         self.mode = 'idle'              # idle | connecting | baseline | live
-        self._baseline_mark = 0
+        self.pred_history = collections.deque(maxlen=SMOOTH_K)
+        self._baseline_start_pc = 0
         self._baseline_deadline = 0
 
         root.title('CSI Live Monitor (wireless)')
@@ -300,15 +334,16 @@ class App:
         self.log.see('end')
 
     def on_connect(self):
-        self.stream = CSIStream(self.args.host, self.args.port)
+        self.stream = CSIStream(self.args.host, self.args.port,
+                                buf_secs=self.args.baseline_secs + 30)
         self.mode = 'connecting'
         self.status_var.set(f'Connecting to {self.args.host}:{self.args.port} ...')
         self.connect_btn.config(state='disabled')
 
     def on_baseline(self):
         self.mode = 'baseline'
-        self._baseline_mark = len(self.stream.snapshot_all())
-        self._baseline_deadline = time.time() + self.args.baseline_secs
+        self._baseline_start_pc = time.time()
+        self._baseline_deadline = self._baseline_start_pc + self.args.baseline_secs
         self.baseline_btn.config(state='disabled')
         self.live_btn.config(state='disabled')
         self.status_var.set('Capturing baseline -- leave the room EMPTY now.')
@@ -319,10 +354,10 @@ class App:
         self.status_var.set('Live monitoring')
         self._log('Live monitoring started')
         self._next_classify = time.time()
+        self.pred_history = collections.deque(maxlen=SMOOTH_K)
 
     def _finish_baseline(self):
-        all_buf = self.stream.snapshot_all()
-        samples = all_buf[self._baseline_mark:]
+        samples = self.stream.snapshot_since(self._baseline_start_pc)
         if len(samples) < self.win:
             self._log(f'Baseline too short ({len(samples)} samples) -- retry, '
                      'check the link is up first.')
@@ -346,15 +381,34 @@ class App:
         buf = self.stream.snapshot_all()
         W = resample_last_window(buf, self.win)
         if W is None:
+            self._log('  [skip: not enough recent window data]')
             return
         base, mu, sd = self.baseline
         MV, SV, MO = window_features(W, self.mask)
+        # Diagnostic only (not fed to the model separately -- raw_feature_vec
+        # recomputes the same `rel`): how far this window's shape sits from
+        # the baseline reference, in the same units the model was trained on.
+        # Logged so a persistent-misclassification report can be told apart
+        # from "borderline near the decision boundary" (small dev_norm) vs
+        # "the feature vector genuinely looks different" (large dev_norm).
+        dev_norm = float(np.linalg.norm((MV - base) / (base + 1e-6)))
         x = raw_feature_vec(MV, SV, MO, base)
         x = (x - mu) / sd
         proba = self.clf.predict_proba(x.reshape(1, -1))[0]
         proba_by_class = dict(zip(self.classes, proba))
-        pred = self.classes[int(np.argmax(proba))]
+        pred_raw = self.classes[int(np.argmax(proba))]
+        raw_conf = float(proba[int(np.argmax(proba))])
+        # Rolling-majority smoothing over the last SMOOTH_K classifications --
+        # same fix phase_a_hier.py already validated for exactly this kind of
+        # frame-to-frame flicker (a single 2s window is noisy on its own; this
+        # is what keeps the display from jumping around even when the room is
+        # genuinely static/empty). The probability bars still show the current
+        # window's raw confidence -- only the headline prediction is smoothed.
+        self.pred_history.append(pred_raw)
+        pred = collections.Counter(self.pred_history).most_common(1)[0][0]
         self._update_display(pred, proba_by_class)
+        self._log(f'  [raw={pred_raw:6s} raw_conf={raw_conf:.2f}  dev_norm={dev_norm:.2f}  '
+                  f'n_win_samples={len(W)}]')
 
     def _update_display(self, pred, proba_by_class):
         presence = 'EMPTY' if pred == 'empty' else 'OCCUPIED'

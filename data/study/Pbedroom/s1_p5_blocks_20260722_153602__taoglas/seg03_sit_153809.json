@@ -1,0 +1,29 @@
+{
+  "segment": 3,
+  "label": "sit",
+  "count": null,
+  "people": [],
+  "position": "sit still",
+  "xy_in": null,
+  "path": "",
+  "direction": "",
+  "duration_s": 70,
+  "n_pauses": 0,
+  "subject": "s1",
+  "room": "Pbedroom",
+  "placement": "p5",
+  "node_orientation": "taoglas",
+  "config": "p5/taoglas",
+  "session_type": "blocks",
+  "tx_xy_in": "",
+  "rx_xy_in": {
+    "taoglas": ""
+  },
+  "ts": "153809",
+  "per_port": {
+    "taoglas": {
+      "packets": 6780,
+      "drops": 1
+    }
+  }
+}
