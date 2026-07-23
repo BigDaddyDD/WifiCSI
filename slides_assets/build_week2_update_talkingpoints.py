@@ -36,7 +36,7 @@ def para(doc, text='', size=12, bold=False, italic=False, align=None, space_afte
 
 
 def slide_heading(doc, n, title):
-    p = para(doc, f'Slide {n} — {title}', size=14, bold=True, space_after=4)
+    p = para(doc, f'Slide {n}: {title}', size=14, bold=True, space_after=4)
     p.paragraph_format.space_before = Pt(16)
     return p
 
@@ -56,7 +56,7 @@ normal.font.name = FONT
 normal.font.size = Pt(12)
 normal.font.color.rgb = BLACK
 
-para(doc, 'CSI Sensing — Week 2 Update: Talking Points', size=16, bold=True,
+para(doc, 'CSI Sensing, Week 2 Update: Talking Points', size=16, bold=True,
     align=WD_ALIGN_PARAGRAPH.CENTER, space_after=2)
 para(doc, 'Speaker notes for CSI_Week2_Update_Slides.pptx', size=12,
     align=WD_ALIGN_PARAGRAPH.CENTER, space_after=2)
@@ -80,9 +80,9 @@ bullet(doc, 'Why "fully wireless" matters: ', 'previously the receiver only '
 bullet(doc, 'Why the antenna question got re-run: ', 'last week’s antenna '
     'result (stock vs. Taoglas) used the older wired pipeline. Repeating it '
     'wirelessly, with more placements across more rooms, is an independent '
-    'check of the same conclusion — if it agrees, the result is confirmed '
+    'check of the same conclusion; if it agrees, the result is confirmed '
     'rather than resting on one dataset.')
-bullet(doc, 'The two boss follow-ups: ', 'from last week’s review — define '
+bullet(doc, 'The two boss follow-ups: ', 'from last week’s review: define '
     'balanced accuracy mathematically and compare it to plain accuracy '
     '(slide 6), and show a histogram of the training data (slide 4). Both are '
     'new content this week, not just repeated from the written report.')
@@ -90,21 +90,21 @@ bullet(doc, 'The two boss follow-ups: ', 'from last week’s review — define '
 # ---------------- Slide 3 ----------------
 slide_heading(doc, 3, 'The dataset')
 bullet(doc, 'What changed from last week’s numbers: ', 'this is the wireless, '
-    'single-antenna (Taoglas on both boards) production dataset — it does '
+    'single-antenna (Taoglas on both boards) production dataset: it does '
     'NOT include the mixed-antenna recordings (one board per antenna type), '
     'which exist only to answer the antenna-transfer question on slides 8–9 '
     'and are kept separate on purpose.')
 bullet(doc, 'The counts: ', '34 sessions across 15 configurations (room × '
     'placement) in four different rooms, ~104 minutes of recording, 608,799 '
-    'CSI packets, sliced into 4,241 labeled 2-second/1-second-hop windows — '
+    'CSI packets, sliced into 4,241 labeled 2-second/1-second-hop windows, '
     'the same window scheme used throughout this project.')
 bullet(doc, 'One subject, four rooms: ', 'cross-subject generalization is '
-    'still untested — same caveat as always, worth naming if asked.')
+    'still untested; same caveat as always, worth naming if asked.')
 
 # ---------------- Slide 4 ----------------
 slide_heading(doc, 4, 'Histogram of the training data')
 bullet(doc, 'What is being counted: ', 'the exact same 4,241 windows behind '
-    'slide 3’s numbers, broken out by class label — this is a direct visual '
+    'slide 3’s numbers, broken out by class label; this is a direct visual '
     'of the dataset just described.')
 bullet(doc, 'Why stand/sit/walk/run look roughly even (~820–1,080 each): ',
     'the recording protocol records one long, equal-length continuous block '
@@ -120,24 +120,24 @@ bullet(doc, 'Why empty is smaller (486): ', 'empty windows are capped per '
 slide_heading(doc, 5, 'Inside the model: the whole tree')
 bullet(doc, 'Same figure as last week, on purpose: ', 'the modeling approach '
     '(random forest, same architecture, same feature pipeline) has not '
-    'changed — this week retrains that same recipe on the new wireless '
+    'changed; this week retrains that same recipe on the new wireless '
     'dataset. Showing the same tree diagram again underlines that the method '
     'is stable; what changed this week is the data feeding it, not the model.')
 bullet(doc, 'If asked for details on the diagram itself: ', 'see last week’s '
-    'talking points (or the report) — it is the literal first tree of the '
+    'talking points (or the report): it is the literal first tree of the '
     'real 300-tree production forest, all 1,699 real nodes drawn, top 6 '
     'levels labeled with real thresholds, everything below that as unlabeled '
     'dots (still real nodes, just too many to caption individually).')
 
 # ---------------- Slide 6 ----------------
 slide_heading(doc, 6, 'Balanced accuracy vs. traditional accuracy')
-para(doc, 'This is the slide written specifically for the boss’s request — '
+para(doc, 'This is the slide written specifically for the boss’s request; '
     'take the time here. Wording and worked example follow the same style as '
     'the "Index" section at the end of last week’s written report, just '
     'updated to this week’s numbers.', size=12, italic=True, space_after=6)
 bullet(doc, 'Balanced accuracy, in one line: ', 'the average of the per-class '
     'recalls, instead of the raw fraction of windows called correctly.')
-bullet(doc, 'Why we use it: ', 'the classes are uneven — there are more '
+bullet(doc, 'Why we use it: ', 'the classes are uneven: there are more '
     'occupied/stand windows than empty/run windows. Plain accuracy lets a '
     'model score high just by predicting the majority class; balanced '
     'accuracy weights every class equally, so a less-recorded class (like '
@@ -145,15 +145,15 @@ bullet(doc, 'Why we use it: ', 'the classes are uneven — there are more '
 bullet(doc, 'How it’s calculated: ', 'for each class, recall = (windows of '
     'that class predicted correctly) ÷ (total windows of that class). '
     'Balanced accuracy is just the average of those per-class recalls.')
-bullet(doc, 'Walk through the worked example on the slide slowly — this is '
+bullet(doc, 'Walk through the worked example on the slide slowly; this is '
     'this week’s real held-out presence result, not a hypothetical: ',
-    'empty recall = 171 / 486 = 0.352 — the model only caught about a third '
+    'empty recall = 171 / 486 = 0.352: the model only caught about a third '
     'of the truly-empty windows when tested on a placement it never trained '
-    'on. Occupied recall = 3,469 / 3,755 = 0.924 — it catches occupied '
+    'on. Occupied recall = 3,469 / 3,755 = 0.924: it catches occupied '
     'windows well. Balanced accuracy averages those two: (0.352 + 0.924) / 2 '
-    '= 0.638, which we round to 0.64 — the same number reported on slide 7.')
+    '= 0.638, which we round to 0.64, the same number reported on slide 7.')
 bullet(doc, 'Now show why plain accuracy would have hidden that: ',
-    'traditional accuracy on this same result is 3,640 / 4,241 = 0.858 — a '
+    'traditional accuracy on this same result is 3,640 / 4,241 = 0.858, a '
     'much better-looking 86%. That number is inflated by how much bigger the '
     'occupied class is; it does not reflect that the model is actually weak '
     'at recognizing empty. Balanced accuracy is the number that cannot be '
@@ -161,7 +161,7 @@ bullet(doc, 'Now show why plain accuracy would have hidden that: ',
     'with it.')
 bullet(doc, 'If the boss wants one takeaway line: ', '"Balanced accuracy is '
     'the number that cannot be gamed by a model that just learns to predict '
-    'whichever class has the most examples — that is why every result in '
+    'whichever class has the most examples, which is why every result in '
     'this project is reported that way."')
 
 # ---------------- Slide 7 ----------------

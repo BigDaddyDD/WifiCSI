@@ -1,5 +1,5 @@
 """Build a plain model-comparison report (boss request: "how would various models
-perform — CNNs, deep learning, etc."). Times New Roman 12, black, no theme.
+perform, CNNs, deep learning, etc."). Times New Roman 12, black, no theme.
 
 Reads docs/model_report_assets/model_comparison.json (produced by
 model_comparison.py) so every number is the real, reproducible output.
@@ -71,7 +71,7 @@ def figure(doc, filename, caption, width=6.2):
 
 
 def fmt(v):
-    return "—" if v is None or v != v else f"{v:.2f}"     # em dash for NaN
+    return "N/A" if v is None or v != v else f"{v:.2f}"
 
 
 doc = Document()
@@ -80,7 +80,7 @@ normal.font.name = FONT
 normal.font.size = Pt(12)
 normal.font.color.rgb = BLACK
 
-para(doc, "Wi-Fi CSI Sensing — Model Comparison", size=16, bold=True,
+para(doc, "Wi-Fi CSI Sensing: Model Comparison", size=16, bold=True,
      align=WD_ALIGN_PARAGRAPH.CENTER, space_after=2)
 para(doc, "How different model families perform on the same task", size=12,
      align=WD_ALIGN_PARAGRAPH.CENTER, space_after=2)
@@ -99,7 +99,7 @@ para(doc, "We compared ten model families on the occupancy/activity task, from "
 para(doc, "Two input representations were compared. The eight classical models "
      "receive the same 160 hand-crafted features per window used by the current "
      "pipeline. The two deep networks instead receive the raw calibrated window "
-     "(52 subcarriers x 200 samples) and learn their own features end-to-end — "
+     "(52 subcarriers x 200 samples) and learn their own features end-to-end: "
      "this is the fairest test of whether deep learning helps here.")
 
 # --- Table ---
@@ -141,8 +141,8 @@ figure(doc, "fig7_model_comparison.png",
 heading(doc, "What the comparison shows")
 bullet(doc, "Model choice barely changes cross-placement activity. ",
        "Every model lands between 0.37 and 0.46 balanced accuracy on an unseen "
-       "placement — the 1-D CNN is nominally best (0.46), naive Bayes and gradient "
-       "boosting next (0.45, 0.44), the random forest 0.42 — but the spread is "
+       "placement, with the 1-D CNN nominally best (0.46), naive Bayes and gradient "
+       "boosting next (0.45, 0.44), and the random forest at 0.42, but the spread is "
        "within noise. No algorithm breaks out. The ceiling here is set by the "
        "single-antenna viewpoint and the amount of data, not by the model. A fancier "
        "model does not fix cross-placement activity; a second receiver is the lever.")
@@ -154,14 +154,14 @@ bullet(doc, "For presence, engineered features beat raw deep learning decisively
        "rediscover it as well.")
 bullet(doc, "The deep networks captured motion but missed stillness. ",
        "The CNN had the best walk and run recall of any model (0.67 and 0.54) yet the "
-       "worst empty and sit recall — it learns movement dynamics from the raw signal "
+       "worst empty and sit recall: it learns movement dynamics from the raw signal "
        "but confuses an empty room with a still person. The feature-based models are "
        "the opposite: they nail empty. This is a useful pointer for combining them "
        "later.")
 bullet(doc, "Once calibrated on-site, the simplest models win. ",
        "Per-install, logistic regression (0.85) and the RBF-SVM (0.83) actually beat "
        "the tree ensembles (0.79–0.80). With an on-site empty baseline the features "
-       "become cleanly separable, so a light linear model is enough — no heavy model "
+       "become cleanly separable, so a light linear model is enough; no heavy model "
        "needed for the realistic deployment mode.")
 bullet(doc, "Deep learning does not beat the random forest at this data scale. ",
        "With ~5,000 windows from one subject, the CNN and GRU do not outperform the "
@@ -175,7 +175,7 @@ heading(doc, "Recommendation")
 para(doc, "Keep the random forest as the default model: it is at or near the top for "
      "presence (0.84), competitive on activity, needs no feature scaling or tuning, "
      "trains in seconds, and is interpretable. The result to take away is that the "
-     "current limitations are a sensing limitation, not a modeling one — no model in "
+     "current limitations are a sensing limitation, not a modeling one: no model in "
      "this sweep, including deep networks, removes the cross-placement activity wall. "
      "That is the direct argument for adding a second and third receiver rather than "
      "investing in a heavier model on a single link.")

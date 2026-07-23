@@ -103,13 +103,13 @@ r = tf.paragraphs[0].add_run(); r.text = 'Wi-Fi CSI Presence & Activity Sensing'
 setrun(r, 40, True)
 tf2 = textbox(s, 0.8, 3.9, SW - 1.6, 0.8)
 r = tf2.paragraphs[0].add_run()
-r.text = 'End-of-week update — wireless deployment & antenna comparison · July 2026'
+r.text = 'End-of-week update, wireless deployment & antenna comparison · July 2026'
 setrun(r, 20)
 
 # ---- Slide 2: this week -----------------------------------------------------
 s = slide(); title(s, 'This week')
 bullets(s, 0.7, 1.5, SW - 1.4, 5.5, [
-    'The system now runs fully wirelessly — receiver relays CSI over Wi-Fi at '
+    'The system now runs fully wirelessly: the receiver relays CSI over Wi-Fi at '
     'the full native ~97–99 Hz rate, and a live monitor app classifies '
     'presence/activity from a laptop with no cable to the sensor.',
     'Repeated the antenna-portability question from last week, this time '
@@ -132,7 +132,7 @@ bullets(s, 0.7, 1.5, SW - 1.4, 5.5, [
     'Labeled 2-second analysis windows: 4,241',
     'Classes: empty, stand, sit, walk, run',
     'One subject, four rooms, single antenna configuration (Taoglas on both '
-    'boards) — the mixed-antenna pair was recorded separately, only for the '
+    'boards); the mixed-antenna pair was recorded separately, only for the '
     'antenna-comparison test, and is not part of this production dataset.',
 ], size=19)
 
@@ -151,7 +151,7 @@ s = slide(); title(s, 'Inside the model: the whole tree')
 image_fit(s, os.path.join(A, 'fig11_tree_diagram.png'), 0.3, 1.2, SW - 0.6, 5.0)
 bullets(s, 0.9, 6.35, SW - 1.8, 1.0, [
     'Same real tree as last week’s slide (tree #1 of the 300-tree forest, all '
-    '1,699 real nodes) — the modeling approach is unchanged; this week’s work '
+    '1,699 real nodes): the modeling approach is unchanged; this week’s work '
     'retrains the same random-forest recipe on the new wireless dataset.',
 ], size=15)
 
@@ -167,11 +167,11 @@ bullets(s, 0.7, 1.45, SW - 1.4, 1.6, [
 ], size=18)
 mono_lines(s, 0.7, 3.35, SW - 1.4, 2.9, [
     ('How it’s calculated: recall = (windows of that class predicted correctly) ÷ (total windows of that class)', False, True),
-    ('Example — this week’s presence result, held-out (leave-one-config-out):', True, False),
+    ('Example: this week’s presence result, held-out (leave-one-config-out):', True, False),
     ('  empty recall      =   171 / 486    =  0.352   (poor)', False, True),
     ('  occupied recall   = 3,469 / 3,755  =  0.924   (inflated)', False, True),
     ('  balanced accuracy = (0.352 + 0.924) / 2  =  0.638  ≈  0.64', True, False),
-    ('  traditional accuracy = 3,640 / 4,241 = 0.858 ≈ 0.86 — looks much better, but hides the weak empty recall', False, False),
+    ('  traditional accuracy = 3,640 / 4,241 = 0.858 ≈ 0.86, which looks much better but hides the weak empty recall', False, False),
 ], size=18)
 
 # ---- Slide 7: cross-placement result ----------------------------------------
@@ -179,7 +179,7 @@ s = slide(); title(s, 'Cross-placement generalization (wireless)')
 bullets(s, 0.7, 1.5, SW - 1.4, 5.5, [
     'Leave-one-config-out, 15 folds, wireless Taoglas production dataset: '
     'presence 0.64 balanced, 5-class activity 0.37 balanced.',
-    'Same range this project has always seen on the wired data — moving to '
+    'Same range this project has always seen on the wired data; moving to '
     'wireless is not changing the underlying generalization result, which is '
     'reassuring: the relay itself is not introducing a new problem.',
 ], size=19)
@@ -189,9 +189,9 @@ s = slide(); title(s, 'Taoglas vs. mixed pair: per-install accuracy')
 image_fit(s, os.path.join(A, 'fig13_confusion_wireless_antenna.png'), 0.4, 1.3, SW - 0.8, 4.4)
 bullets(s, 0.9, 5.85, SW - 1.8, 1.5, [
     'Left two panels: each antenna condition calibrated and evaluated on its '
-    'own recordings (per-install, 5-fold) — both work well (0.87 / 0.92 '
-    'balanced), same confusions in both (sit/stand, walk/run).',
-    'Right panel: train on Taoglas, test on the mixed pair, no retraining — '
+    'own recordings (per-install, 5-fold). Both work well (0.87 / 0.92 '
+    'balanced), with the same confusions in both (sit/stand, walk/run).',
+    'Right panel: train on Taoglas, test on the mixed pair, no retraining: '
     'the diagonal disappears. Sit gets called stand 63% of the time; run '
     'gets called walk 68% of the time. This is what "does not transfer" '
     'looks like, not just a number.',
@@ -205,14 +205,14 @@ bullets(s, 0.9, 6.05, SW - 1.8, 1.3, [
     'dataset: cross-antenna transfer collapses (5-class 0.36, presence 0.67) '
     'well below either antenna’s own per-install number (0.87–0.97).',
     'External corroboration: CSI-Bench (Zhu et al., 2025, arXiv:2505.21866) '
-    'reports the same pattern industry-wide — cross-device WiFi sensing '
+    'reports the same pattern industry-wide: cross-device WiFi sensing '
     'accuracy drops sharply (e.g. 99.8% → ~70% F1 in their benchmark) due to '
     '"hardware heterogeneity," even without changing the room. Our result is '
     'consistent with a known, general limitation, not an artifact of our setup.',
 ], size=14)
 
 # ---- Slide 8: live field demo -----------------------------------------------
-s = slide(); title(s, 'Live monitor — interface preview')
+s = slide(); title(s, 'Live monitor: interface preview')
 photos = ['Empty.jpg', 'Stand.jpg', 'Sit.jpg']
 labels = ['Empty', 'Standing', 'Sitting']
 pw = (SW - 1.6) / 3
@@ -223,7 +223,7 @@ for i, (fn, lab) in enumerate(zip(photos, labels)):
     r = tf.paragraphs[0].add_run(); r.text = lab
     setrun(r, 16, True)
 bullets(s, 0.8, 6.5, SW - 1.6, 0.8, [
-    'What the live monitor interface looks like once deployed — presence and '
+    'What the live monitor interface looks like once deployed: presence and '
     'activity state, updated from the wireless CSI stream.',
 ], size=13)
 
@@ -233,7 +233,7 @@ bullets(s, 0.7, 1.5, SW - 1.4, 5.5, [
     'Wireless deployment is validated end to end: full native rate, stable '
     'live classification, field-tested interface.',
     'Antenna portability result now confirmed twice (wired and wireless, '
-    'independent datasets) — treating this as settled rather than directional.',
+    'independent datasets); treating this as settled rather than directional.',
     'Continuing to add placements/rooms on the single (Taoglas) antenna to '
     'tighten the cross-placement confidence interval.',
     'Next: keep expanding room/placement coverage on the production antenna; '

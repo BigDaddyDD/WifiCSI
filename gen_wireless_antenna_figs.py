@@ -89,23 +89,25 @@ def main():
     cmn_m = cm_m / cm_m.sum(1, keepdims=True) * 100
     cmn_c = cm_c / cm_c.sum(1, keepdims=True) * 100
 
-    fig, axes = plt.subplots(1, 3, figsize=(15.0, 4.8))
-    panels = [(axes[0], cmn_t, 'Taoglas (per-install)', len(yt_t), bal_t),
-              (axes[1], cmn_m, 'Mixed pair (per-install)', len(yt_m), bal_m),
-              (axes[2], cmn_c, 'Taoglas -> Mixed (no retrain)', len(yt_cross), bal_cross)]
-    for ax, cmn, name, n, bal in panels:
+    fig, axes = plt.subplots(1, 3, figsize=(16.5, 4.8),
+                             gridspec_kw=dict(wspace=0.55))
+    panels = [(axes[0], cmn_t, 'Taoglas (per-install)', bal_t),
+              (axes[1], cmn_m, 'Mixed pair (per-install)', bal_m),
+              (axes[2], cmn_c, 'Taoglas -> Mixed (no retrain)', bal_cross)]
+    for ax, cmn, name, bal in panels:
         im = ax.imshow(cmn, cmap='Blues', vmin=0, vmax=100)
         ax.set_xticks(range(len(LABELS))); ax.set_xticklabels(LABELS)
         ax.set_yticks(range(len(LABELS))); ax.set_yticklabels(LABELS)
         ax.set_xlabel('Predicted activity')
-        ax.set_ylabel('Actual activity')
-        ax.text(0.5, -0.22, f'{name}\n(n={n}, balanced {bal:.2f})',
+        ax.set_ylabel('Actual activity', labelpad=8)
+        ax.text(0.5, -0.34, f'{name}\n(balanced {bal:.2f})',
                 transform=ax.transAxes, ha='center', fontsize=10)
         for i in range(len(LABELS)):
             for j in range(len(LABELS)):
                 ax.text(j, i, f'{cmn[i, j]:.0f}', ha='center', va='center', fontsize=9,
                         color='white' if cmn[i, j] > 55 else 'black')
-    fig.colorbar(im, ax=axes, fraction=0.018, pad=0.02).set_label('% of actual class')
+    fig.subplots_adjust(bottom=0.3)
+    fig.colorbar(im, ax=axes, fraction=0.018, pad=0.03).set_label('% of actual class')
     fig.savefig(os.path.join(OUT, 'fig13_confusion_wireless_antenna.png'), dpi=120,
                bbox_inches='tight')
     plt.close(fig)
